@@ -1,0 +1,22 @@
+# Large binary assets (882MB+ images/videos)
+downloads/
+
+# Generated thumbnails
+dashboard/static/thumbs/
+
+# Playwright MCP cache
+.playwright-mcp/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Screenshots (dev artifacts)
+*.png

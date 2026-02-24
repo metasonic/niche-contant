@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vision Model Evaluation — Executive Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+/* ================================================================
+   RESET & BASE
+   ================================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep:     #0a0e1a;
+  --bg-card:     rgba(15, 20, 40, 0.65);
+  --bg-card-hover: rgba(20, 28, 58, 0.8);
+  --border:      rgba(99, 102, 241, 0.15);
+  --border-glow: rgba(99, 102, 241, 0.35);
+  --text-primary:   #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+  --accent-1: #818cf8;   /* indigo */
+  --accent-2: #a78bfa;   /* violet */
+  --accent-3: #c084fc;   /* purple */
+  --accent-4: #f472b6;   /* pink */
+  --accent-5: #38bdf8;   /* sky */
+  --accent-6: #34d399;   /* emerald */
+  --gradient-main: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
+  --gradient-card: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(192,132,252,0.05));
+  --success: #34d399;
+  --danger:  #f87171;
+  --warning: #fbbf24;
+  --radius:  16px;
+  --radius-sm: 10px;
+  --shadow:  0 8px 32px rgba(0,0,0,0.4);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Animated mesh gradient background */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 20%, rgba(99,102,241,0.12), transparent),
+    radial-gradient(ellipse 60% 80% at 90% 80%, rgba(192,132,252,0.08), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(56,189,248,0.05), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ================================================================
+   LAYOUT
+   ================================================================ */
+.dashboard {
+  position: relative;
+  z-index: 1;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 24px 28px 60px;
+}
+
+/* ================================================================
+   HEADER
+   ================================================================ */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.header-left h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  background: var(--gradient-main);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
+.header-left p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.badge-live {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--success);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+}
+.badge-live::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,211,153,0.4); }
+  50% { opacity: 0.6; box-shadow: 0 0 0 6px rgba(52,211,153,0); }
+}
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent-1);
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  transition: all 0.2s ease;
+}
+.nav-link:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+.timestamp {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ================================================================
+   CARD BASE
+   ================================================================ */
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+.card:hover {
+  border-color: var(--border-glow);
+  box-shadow: 0 0 30px rgba(99,102,241,0.06);
+}
+.card-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+}
+
+/* ================================================================
+   KPI STRIP
+   ================================================================ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.kpi {
+  background: var(--gradient-card);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, border-color 0.3s;
+}
+.kpi:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-glow);
+}
+.kpi::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.kpi:nth-child(1)::after { background: var(--accent-1); }
+.kpi:nth-child(2)::after { background: var(--accent-5); }
+.kpi:nth-child(3)::after { background: var(--accent-6); }
+.kpi:nth-child(4)::after { background: var(--accent-3); }
+.kpi:nth-child(5)::after { background: var(--accent-4); }
+.kpi:nth-child(6)::after { background: var(--accent-2); }
+.kpi:nth-child(7)::after { background: var(--warning); }
+
+.kpi-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.kpi-value {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -1px;
+  line-height: 1;
+}
+.kpi-sub {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+}
+
+/* ================================================================
+   CHART GRID
+   ================================================================ */
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.grid-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.grid-full {
+  margin-bottom: 20px;
+}
+
+/* ================================================================
+   HEATMAP
+   ================================================================ */
+.heatmap-container {
+  overflow-x: auto;
+  position: relative;
+}
+.heatmap-container::-webkit-scrollbar { height: 5px; }
+.heatmap-container::-webkit-scrollbar-track { background: transparent; }
+.heatmap-container::-webkit-scrollbar-thumb { background: var(--border-glow); border-radius: 3px; }
+.heatmap-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 3px;
+  font-size: 0.78rem;
+}
+.heatmap-table th {
+  padding: 6px 6px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-align: center;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+.heatmap-table th.row-header {
+  text-align: right;
+  padding-right: 10px;
+  min-width: 120px;
+  font-size: 0.68rem;
+}
+.heatmap-cell {
+  padding: 8px 5px;
+  text-align: center;
+  border-radius: 6px;
+  font-weight: 700;
+  font-size: 0.72rem;
+  transition: transform 0.15s;
+  cursor: default;
+  min-width: 52px;
+}
+.heatmap-cell:hover {
+  transform: scale(1.08);
+  z-index: 2;
+  position: relative;
+}
+.heatmap-cell.clickable {
+  cursor: pointer;
+}
+.heatmap-cell.clickable:hover {
+  outline: 2px solid var(--accent-1);
+  outline-offset: -2px;
+}
+
+/* ================================================================
+   DRILLDOWN MODAL
+   ================================================================ */
+.drilldown-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.drilldown-backdrop.open {
+  display: flex;
+}
+.drilldown-panel {
+  background: var(--bg-deep);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 960px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6);
+  animation: fadeInUp 0.25s ease;
+}
+.drilldown-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.drilldown-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  background: var(--gradient-main);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.drilldown-close {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.1rem;
+  transition: all 0.15s;
+}
+.drilldown-close:hover {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+.drilldown-body {
+  overflow-y: auto;
+  padding: 20px 24px 24px;
+  flex: 1;
+}
+.drilldown-body::-webkit-scrollbar { width: 5px; }
+.drilldown-body::-webkit-scrollbar-track { background: transparent; }
+.drilldown-body::-webkit-scrollbar-thumb { background: var(--border-glow); border-radius: 3px; }
+
+/* Stats strip */
+.dd-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 10px;
+  margin-bottom: 18px;
+}
+.dd-stat {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  text-align: center;
+}
+.dd-stat-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.dd-stat-value {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+/* YES/NO bar */
+.dd-verdict-bar {
+  display: flex;
+  height: 28px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+.dd-verdict-yes {
+  background: rgba(52, 211, 153, 0.4);
+  color: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.4s ease;
+}
+.dd-verdict-no {
+  background: rgba(248, 113, 113, 0.35);
+  color: var(--danger);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: width 0.4s ease;
+}
+
+/* Image card grid */
+.dd-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 12px;
+}
+.dd-card {
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  display: flex;
+  gap: 12px;
+  transition: border-color 0.2s;
+}
+.dd-card:hover {
+  border-color: var(--border-glow);
+}
+.dd-card-thumb {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.04);
+  cursor: pointer;
+}
+.dd-card-info {
+  flex: 1;
+  min-width: 0;
+}
+.dd-card-filename {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+}
+.dd-card-verdict {
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+.dd-card-conf {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+.dd-card-reason {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  cursor: pointer;
+}
+.dd-card-reason.expanded {
+  -webkit-line-clamp: unset;
+}
+
+/* Spinner */
+.dd-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  gap: 10px;
+}
+.dd-spinner::before {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-1);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ================================================================
+   AGREEMENT DONUT
+   ================================================================ */
+.agreement-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+}
+.agreement-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,0.03);
+}
+.agreement-stat .label { color: var(--text-secondary); font-size: 0.82rem; }
+.agreement-stat .value { font-weight: 700; font-size: 0.95rem; }
+
+/* ================================================================
+   MODEL COMPARISON TABLE
+   ================================================================ */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+.data-table thead th {
+  padding: 12px 14px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 1px solid var(--border);
+}
+.data-table tbody td {
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(99,102,241,0.06);
+  vertical-align: middle;
+}
+.data-table tbody tr:hover {
+  background: rgba(99,102,241,0.04);
+}
+.model-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.mini-bar {
+  display: inline-block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--gradient-main);
+  vertical-align: middle;
+  margin-left: 8px;
+  transition: width 0.6s ease;
+}
+.conf-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+.conf-high   { background: rgba(52,211,153,0.15); color: var(--success); }
+.conf-medium { background: rgba(251,191,36,0.15); color: var(--warning); }
+.conf-low    { background: rgba(248,113,113,0.15); color: var(--danger); }
+
+/* ================================================================
+   DISAGREEMENT CARDS
+   ================================================================ */
+.disagreement-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+.disagreement-list::-webkit-scrollbar { width: 5px; }
+.disagreement-list::-webkit-scrollbar-track { background: transparent; }
+.disagreement-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.disagree-card {
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(248,113,113,0.15);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.disagree-card .img-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  word-break: break-all;
+}
+.disagree-card .verdict-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 0.8rem;
+}
+.verdict-yes { color: var(--success); font-weight: 600; }
+.verdict-no  { color: var(--danger); font-weight: 600; }
+
+/* ================================================================
+   NICHE BARS
+   ================================================================ */
+.niche-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.niche-bar-label {
+  width: 120px;
+  text-align: right;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+.niche-bar-track {
+  flex: 1;
+  height: 24px;
+  background: rgba(255,255,255,0.04);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+}
+.niche-bar-fill {
+  height: 100%;
+  border-radius: 6px;
+  transition: width 0.8s ease;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 8px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.9);
+}
+.niche-bar-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  width: 50px;
+  flex-shrink: 0;
+}
+
+/* ================================================================
+   SECTION TITLES
+   ================================================================ */
+.section-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 18px;
+  padding-left: 12px;
+  border-left: 3px solid var(--accent-1);
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+@media (max-width: 1024px) {
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  .kpi-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+}
+
+/* ================================================================
+   ANIMATIONS
+   ================================================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-in {
+  animation: fadeInUp 0.5s ease forwards;
+  opacity: 0;
+}
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.10s; }
+.delay-3 { animation-delay: 0.15s; }
+.delay-4 { animation-delay: 0.20s; }
+.delay-5 { animation-delay: 0.25s; }
+.delay-6 { animation-delay: 0.30s; }
+.delay-7 { animation-delay: 0.35s; }
+
+/* Canvas sizing */
+.chart-wrapper {
+  position: relative;
+  width: 100%;
+}
+.chart-wrapper canvas {
+  width: 100% !important;
+}
+</style>
+</head>
+<body>
+
+<div class="dashboard">
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="header animate-in">
+    <div class="header-left">
+      <h1>Vision Model Evaluation</h1>
+      <p>AI Niche Classification — Performance Dashboard</p>
+    </div>
+    <div class="header-right">
+      <a href="/gallery" class="nav-link">Gallery</a>
+      <span class="badge badge-live">Live Data</span>
+      <span class="timestamp" id="timestamp"></span>
+    </div>
+  </header>
+
+  <!-- KPI Strip -->
+  <div class="kpi-grid" id="kpi-grid"></div>
+
+  <!-- Row 1: Model Accuracy Bar + Agreement Donut -->
+  <div class="grid-2">
+    <div class="card animate-in delay-2">
+      <div class="card-title">Model Classification Rate (%)</div>
+      <div class="chart-wrapper" style="height:320px;">
+        <canvas id="modelAccuracyChart"></canvas>
+      </div>
+    </div>
+    <div class="card animate-in delay-3">
+      <div class="card-title">Model Agreement Analysis</div>
+      <div style="display:flex; gap:20px; align-items:center;">
+        <div class="chart-wrapper" style="width:55%; height:260px;">
+          <canvas id="agreementChart"></canvas>
+        </div>
+        <div style="flex:1;" id="agreement-stats"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Confidence Distribution + Per-Niche Accuracy -->
+  <div class="grid-2">
+    <div class="card animate-in delay-3">
+      <div class="card-title">Confidence Distribution by Model</div>
+      <div class="chart-wrapper" style="height:320px;">
+        <canvas id="confDistChart"></canvas>
+      </div>
+    </div>
+    <div class="card animate-in delay-4">
+      <div class="card-title">Per-Niche YES Rate (%)</div>
+      <div id="niche-bars" style="max-height:350px; overflow-y:auto; padding-right:6px;"></div>
+    </div>
+  </div>
+
+  <!-- Row 3: Heatmap (full width) -->
+  <div class="grid-full">
+    <div class="card animate-in delay-4">
+      <div class="card-title">Model &times; Niche — Classification Rate Heatmap</div>
+      <div class="heatmap-container" id="heatmap-container"></div>
+    </div>
+  </div>
+
+  <!-- Row 4: Confidence Heatmap (full width) -->
+  <div class="grid-full">
+    <div class="card animate-in delay-5">
+      <div class="card-title">Model &times; Niche — Average Confidence % Heatmap</div>
+      <div class="heatmap-container" id="conf-heatmap-container"></div>
+    </div>
+  </div>
+
+  <!-- Row 5: Model Comparison Table -->
+  <div class="grid-full">
+    <div class="card animate-in delay-5">
+      <div class="card-title">Model Performance Summary</div>
+      <div style="overflow-x:auto;">
+        <table class="data-table" id="model-table">
+          <thead>
+            <tr>
+              <th>Model</th>
+              <th>Images</th>
+              <th>YES</th>
+              <th>NO</th>
+              <th>Rate</th>
+              <th style="width:220px;">Distribution</th>
+              <th>Avg Confidence</th>
+              <th>Median</th>
+              <th>Std Dev</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 6: Disagreements -->
+  <div class="grid-full">
+    <div class="card animate-in delay-6">
+      <div class="card-title">Classification Disagreements Between Models</div>
+      <div class="disagreement-list" id="disagreements"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Drilldown Modal -->
+<div class="drilldown-backdrop" id="drilldown-backdrop">
+  <div class="drilldown-panel">
+    <div class="drilldown-header">
+      <h2 id="drilldown-title">Cell Detail</h2>
+      <button class="drilldown-close" id="drilldown-close">&times;</button>
+    </div>
+    <div class="drilldown-body" id="drilldown-body"></div>
+  </div>
+</div>
+
+<!-- ================================================================
+     SCRIPT
+     ================================================================ -->
+<script>
+const DATA = {{ data | safe }};
+
+// ---- Palette ----
+const PALETTE = ['#818cf8','#38bdf8','#34d399','#c084fc','#f472b6','#fbbf24','#fb923c','#a3e635'];
+const MODEL_COLORS = {};
+DATA.models.forEach((m, i) => MODEL_COLORS[m] = PALETTE[i % PALETTE.length]);
+
+// ---- Chart.js defaults ----
+Chart.defaults.color = '#94a3b8';
+Chart.defaults.font.family = "'Inter', sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyleWidth = 10;
+Chart.defaults.plugins.legend.labels.boxHeight = 8;
+
+// ---- Helpers ----
+function heatColor(val, max) {
+  // val 0-100 → cold(red) to hot(green)
+  const ratio = val / max;
+  if (ratio >= 0.95) return 'rgba(52,211,153,0.35)';
+  if (ratio >= 0.85) return 'rgba(52,211,153,0.22)';
+  if (ratio >= 0.70) return 'rgba(251,191,36,0.22)';
+  if (ratio >= 0.50) return 'rgba(251,191,36,0.15)';
+  return 'rgba(248,113,113,0.22)';
+}
+function confClass(val) {
+  if (val >= 0.8) return 'conf-high';
+  if (val >= 0.5) return 'conf-medium';
+  return 'conf-low';
+}
+function niceName(slug) {
+  return slug.replace(/-/g, ' ').replace(/\bplus\b/g, '+')
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ================================================================
+// KPI STRIP
+// ================================================================
+(function renderKPIs() {
+  const k = DATA.kpis;
+  const kpis = [
+    { label: 'Models Evaluated', value: k.total_models, sub: 'Vision AI models' },
+    { label: 'Total Niches', value: k.total_niches, sub: 'Content categories' },
+    { label: 'Total Evaluations', value: k.total_evaluations.toLocaleString(), sub: 'Model x Image pairs' },
+    { label: 'Unique Images', value: k.total_images_evaluated.toLocaleString(), sub: 'Classified media' },
+    { label: 'Overall YES Rate', value: k.overall_yes_rate + '%', sub: 'Positive classifications' },
+    { label: 'Avg Confidence', value: (k.avg_confidence * 100).toFixed(1) + '%', sub: 'Mean probability' },
+    { label: 'Model Agreement', value: k.agreement_rate + '%', sub: 'Unanimous consensus' },
+  ];
+  const grid = document.getElementById('kpi-grid');
+  kpis.forEach((kpi, i) => {
+    const d = document.createElement('div');
+    d.className = `kpi animate-in delay-${i+1}`;
+    d.innerHTML = `
+      <div class="kpi-label">${kpi.label}</div>
+      <div class="kpi-value">${kpi.value}</div>
+      <div class="kpi-sub">${kpi.sub}</div>
+    `;
+    grid.appendChild(d);
+  });
+})();
+
+// ================================================================
+// TIMESTAMP
+// ================================================================
+(function() {
+  const ts = DATA.report_meta.generated_at;
+  if (ts) {
+    const d = new Date(ts);
+    document.getElementById('timestamp').textContent = 'Data: ' + d.toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'}) + ' ' + d.toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit'});
+  }
+})();
+
+// ================================================================
+// MODEL ACCURACY BAR CHART
+// ================================================================
+(function() {
+  const models = DATA.models;
+  const values = models.map(m => DATA.per_model[m].accuracy);
+  const colors = models.map(m => MODEL_COLORS[m]);
+  new Chart(document.getElementById('modelAccuracyChart'), {
+    type: 'bar',
+    data: {
+      labels: models,
+      datasets: [{
+        data: values,
+        backgroundColor: colors.map(c => c + '55'),
+        borderColor: colors,
+        borderWidth: 2,
+        borderRadius: 8,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: ctx => ctx.raw + '% YES rate (' + DATA.per_model[ctx.label].total + ' images)'
+          }
+        }
+      },
+      scales: {
+        x: {
+          min: Math.max(0, Math.min(...values) - 5),
+          max: 100,
+          grid: { color: 'rgba(99,102,241,0.08)' },
+          ticks: { callback: v => v + '%' }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { font: { weight: 600 } }
+        }
+      }
+    }
+  });
+})();
+
+// ================================================================
+// AGREEMENT DONUT
+// ================================================================
+(function() {
+  const a = DATA.agreement;
+  new Chart(document.getElementById('agreementChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Unanimous YES', 'Unanimous NO', 'Disagreement'],
+      datasets: [{
+        data: [a.unanimous_yes, a.unanimous_no, a.disagreements],
+        backgroundColor: ['rgba(52,211,153,0.7)', 'rgba(248,113,113,0.6)', 'rgba(251,191,36,0.6)'],
+        borderColor: ['#34d399', '#f87171', '#fbbf24'],
+        borderWidth: 2,
+        hoverOffset: 8,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '62%',
+      plugins: {
+        legend: { position: 'bottom', labels: { padding: 14, font: { size: 11 } } },
+      }
+    }
+  });
+
+  const statsEl = document.getElementById('agreement-stats');
+  statsEl.innerHTML = `
+    <div class="agreement-stats">
+      <div class="agreement-stat">
+        <span class="label">Total Images</span>
+        <span class="value">${a.total}</span>
+      </div>
+      <div class="agreement-stat">
+        <span class="label">All Models Agree YES</span>
+        <span class="value" style="color:var(--success)">${a.unanimous_yes}</span>
+      </div>
+      <div class="agreement-stat">
+        <span class="label">All Models Agree NO</span>
+        <span class="value" style="color:var(--danger)">${a.unanimous_no}</span>
+      </div>
+      <div class="agreement-stat">
+        <span class="label">Disagreements</span>
+        <span class="value" style="color:var(--warning)">${a.disagreements}</span>
+      </div>
+      <div class="agreement-stat">
+        <span class="label">Agreement Rate</span>
+        <span class="value">${a.rate}%</span>
+      </div>
+    </div>
+  `;
+})();
+
+// ================================================================
+// CONFIDENCE DISTRIBUTION (stacked bar)
+// ================================================================
+(function() {
+  const labels = ['0–0.2', '0.2–0.4', '0.4–0.6', '0.6–0.8', '0.8–1.0'];
+  const bucketColors = ['#f87171','#fb923c','#fbbf24','#38bdf8','#34d399'];
+  const datasets = labels.map((lbl, bi) => ({
+    label: lbl,
+    data: DATA.models.map(m => DATA.conf_distribution[m][bi]),
+    backgroundColor: bucketColors[bi] + '88',
+    borderColor: bucketColors[bi],
+    borderWidth: 1,
+    borderRadius: 4,
+  }));
+  new Chart(document.getElementById('confDistChart'), {
+    type: 'bar',
+    data: { labels: DATA.models, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { position: 'top', labels: { font: { size: 10 } } },
+        tooltip: {
+          callbacks: {
+            title: ctx => ctx[0].label,
+            label: ctx => `Confidence ${ctx.dataset.label}: ${ctx.raw} images`
+          }
+        }
+      },
+      scales: {
+        x: { stacked: true, grid: { display: false }, ticks: { font: { size: 10 } } },
+        y: { stacked: true, grid: { color: 'rgba(99,102,241,0.08)' }, title: { display: true, text: 'Images', font: { size: 11 } } }
+      }
+    }
+  });
+})();
+
+// ================================================================
+// PER-NICHE BARS
+// ================================================================
+(function() {
+  const container = document.getElementById('niche-bars');
+  const niches = Object.entries(DATA.per_niche)
+    .sort((a,b) => b[1].accuracy - a[1].accuracy);
+  const gradients = [
+    'linear-gradient(90deg, #818cf8, #c084fc)',
+    'linear-gradient(90deg, #38bdf8, #818cf8)',
+    'linear-gradient(90deg, #34d399, #38bdf8)',
+    'linear-gradient(90deg, #c084fc, #f472b6)',
+  ];
+  niches.forEach(([slug, data], i) => {
+    const row = document.createElement('div');
+    row.className = 'niche-bar-row';
+    row.innerHTML = `
+      <span class="niche-bar-label">${niceName(slug)}</span>
+      <div class="niche-bar-track">
+        <div class="niche-bar-fill" style="width:${data.accuracy}%; background:${gradients[i % gradients.length]}">
+          ${data.accuracy}%
+        </div>
+      </div>
+      <span class="niche-bar-count">${data.total} eval</span>
+    `;
+    container.appendChild(row);
+  });
+})();
+
+// ================================================================
+// DRILLDOWN MODAL
+// ================================================================
+(function() {
+  const backdrop = document.getElementById('drilldown-backdrop');
+  const closeBtn = document.getElementById('drilldown-close');
+
+  function closeModal() { backdrop.classList.remove('open'); }
+  closeBtn.addEventListener('click', closeModal);
+  backdrop.addEventListener('click', e => { if (e.target === backdrop) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+})();
+
+function openDrilldown(model, niche) {
+  const backdrop = document.getElementById('drilldown-backdrop');
+  const title = document.getElementById('drilldown-title');
+  const body = document.getElementById('drilldown-body');
+
+  title.textContent = `${model} × ${niceName(niche)} — Per-Image Detail`;
+  body.innerHTML = '<div class="dd-spinner">Loading…</div>';
+  backdrop.classList.add('open');
+
+  fetch(`/api/heatmap-detail?model=${encodeURIComponent(model)}&niche=${encodeURIComponent(niche)}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        body.innerHTML = `<p style="color:var(--danger);padding:20px;">${data.error}</p>`;
+        return;
+      }
+      renderDrilldownContent(body, data);
+    })
+    .catch(err => {
+      body.innerHTML = `<p style="color:var(--danger);padding:20px;">Failed to load: ${err.message}</p>`;
+    });
+}
+
+function renderDrilldownContent(container, data) {
+  const s = data.summary;
+  const yesPct = s.count ? ((s.yes / s.count) * 100).toFixed(0) : 0;
+  const noPct = s.count ? ((s.no / s.count) * 100).toFixed(0) : 0;
+
+  let html = '';
+
+  // Stats strip
+  html += '<div class="dd-stats">';
+  const stats = [
+    { label: 'Images', value: s.count, color: 'var(--text-primary)' },
+    { label: 'YES', value: s.yes, color: 'var(--success)' },
+    { label: 'NO', value: s.no, color: 'var(--danger)' },
+    { label: 'Avg Conf', value: (s.avg * 100).toFixed(1) + '%', color: 'var(--accent-5)' },
+    { label: 'Median', value: (s.median * 100).toFixed(1) + '%', color: 'var(--accent-2)' },
+    { label: 'Range', value: (s.min * 100).toFixed(0) + '–' + (s.max * 100).toFixed(0) + '%', color: 'var(--accent-1)' },
+  ];
+  stats.forEach(st => {
+    html += `<div class="dd-stat">
+      <div class="dd-stat-label">${st.label}</div>
+      <div class="dd-stat-value" style="color:${st.color}">${st.value}</div>
+    </div>`;
+  });
+  html += '</div>';
+
+  // YES/NO bar
+  html += '<div class="dd-verdict-bar">';
+  if (s.yes > 0) html += `<div class="dd-verdict-yes" style="width:${yesPct}%">YES ${yesPct}%</div>`;
+  if (s.no > 0) html += `<div class="dd-verdict-no" style="width:${noPct}%">NO ${noPct}%</div>`;
+  html += '</div>';
+
+  // Image cards
+  html += '<div class="dd-cards">';
+  data.items.forEach(item => {
+    const verdictColor = item.verdict === 'YES' ? 'var(--success)' : 'var(--danger)';
+    const confPct = (item.probability * 100).toFixed(1);
+    const reason = (item.reason || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    html += `<div class="dd-card">
+      <img class="dd-card-thumb" src="${item.thumb_url}" alt="${item.filename}"
+           loading="lazy" onclick="window.open('${item.image_url}','_blank')"
+           onerror="this.style.display='none'">
+      <div class="dd-card-info">
+        <div class="dd-card-filename" title="${item.filename}">${item.filename}</div>
+        <div class="dd-card-verdict" style="color:${verdictColor}">${item.verdict}</div>
+        <div class="dd-card-conf">Confidence: ${confPct}%</div>
+        ${reason ? `<div class="dd-card-reason" onclick="this.classList.toggle('expanded')" title="Click to expand">${reason}</div>` : ''}
+      </div>
+    </div>`;
+  });
+  html += '</div>';
+
+  container.innerHTML = html;
+}
+
+// ================================================================
+// CLASSIFICATION RATE HEATMAP
+// ================================================================
+function renderHeatmap(containerId, heatData, maxVal, asPercent, onCellClick) {
+  const container = document.getElementById(containerId);
+  const models = DATA.models;
+  const niches = DATA.niches;
+  const clickable = typeof onCellClick === 'function';
+  let html = '<table class="heatmap-table"><thead><tr><th class="row-header"></th>';
+  niches.forEach(n => { html += `<th>${niceName(n)}</th>`; });
+  html += '</tr></thead><tbody>';
+  models.forEach(m => {
+    html += `<tr><th class="row-header">${m}</th>`;
+    niches.forEach(n => {
+      const raw = heatData[m][n];
+      const displayVal = asPercent ? (raw * 100).toFixed(0) : raw;
+      const colorVal = asPercent ? raw * 100 : raw;
+      const bg = heatColor(colorVal, maxVal);
+      const suffix = maxVal === 100 || asPercent ? '%' : '';
+      const extra = clickable ? ` class="heatmap-cell clickable" data-model="${m}" data-niche="${n}"` : ' class="heatmap-cell"';
+      html += `<td${extra} style="background:${bg}" title="${m} / ${niceName(n)}: ${displayVal}${suffix}">${displayVal}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  container.innerHTML = html;
+
+  if (clickable) {
+    container.querySelectorAll('.heatmap-cell.clickable').forEach(cell => {
+      cell.addEventListener('click', () => {
+        onCellClick(cell.dataset.model, cell.dataset.niche);
+      });
+    });
+  }
+}
+renderHeatmap('heatmap-container', DATA.heatmap, 100, false, openDrilldown);
+renderHeatmap('conf-heatmap-container', DATA.confidence_heatmap, 100, true, openDrilldown);
+
+// ================================================================
+// MODEL COMPARISON TABLE
+// ================================================================
+(function() {
+  const tbody = document.querySelector('#model-table tbody');
+  DATA.models.forEach(m => {
+    const d = DATA.per_model[m];
+    const maxTotal = Math.max(...DATA.models.map(mm => DATA.per_model[mm].total));
+    const barW = (d.yes_count / maxTotal * 100).toFixed(0);
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="model-name" style="color:${MODEL_COLORS[m]}">${m}</td>
+      <td>${d.total}</td>
+      <td style="color:var(--success)">${d.yes_count}</td>
+      <td style="color:var(--danger)">${d.no_count}</td>
+      <td><strong>${d.accuracy}%</strong></td>
+      <td><span class="mini-bar" style="width:${barW}%; background:${MODEL_COLORS[m]}44; border:1px solid ${MODEL_COLORS[m]}"></span></td>
+      <td><span class="conf-badge ${confClass(d.avg_confidence)}">${(d.avg_confidence*100).toFixed(1)}%</span></td>
+      <td>${(d.median_confidence*100).toFixed(1)}%</td>
+      <td>${(d.std_confidence*100).toFixed(1)}%</td>
+    `;
+    tbody.appendChild(tr);
+  });
+})();
+
+// ================================================================
+// DISAGREEMENT CARDS
+// ================================================================
+(function() {
+  const container = document.getElementById('disagreements');
+  const samples = DATA.agreement.samples;
+  if (!samples.length) {
+    container.innerHTML = '<p style="color:var(--text-muted);padding:20px;">No disagreements found — all models agree on every image.</p>';
+    return;
+  }
+  samples.forEach(s => {
+    const card = document.createElement('a');
+    card.className = 'disagree-card';
+    card.href = '/gallery?highlight=' + encodeURIComponent(s.image);
+    card.style.textDecoration = 'none';
+    card.style.color = 'inherit';
+    card.title = 'View in gallery';
+    let verdictRows = '';
+    Object.entries(s.verdicts).forEach(([model, verdict]) => {
+      verdictRows += `
+        <div class="verdict-row">
+          <span style="color:${MODEL_COLORS[model] || 'var(--text-secondary)'}">${model}</span>
+          <span class="${verdict === 'YES' ? 'verdict-yes' : 'verdict-no'}">${verdict}</span>
+        </div>
+      `;
+    });
+    card.innerHTML = `
+      <div class="img-label">${s.image}</div>
+      ${verdictRows}
+    `;
+    container.appendChild(card);
+  });
+})();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Image Gallery — Vision Model Evaluation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ================================================================
+   RESET & BASE — matches dashboard theme
+   ================================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg-deep:     #0a0e1a;
+  --bg-card:     rgba(15, 20, 40, 0.65);
+  --bg-card-hover: rgba(20, 28, 58, 0.8);
+  --border:      rgba(99, 102, 241, 0.15);
+  --border-glow: rgba(99, 102, 241, 0.35);
+  --text-primary:   #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted:     #64748b;
+  --accent-1: #818cf8;
+  --accent-2: #a78bfa;
+  --accent-3: #c084fc;
+  --accent-4: #f472b6;
+  --accent-5: #38bdf8;
+  --accent-6: #34d399;
+  --gradient-main: linear-gradient(135deg, #818cf8, #c084fc, #f472b6);
+  --gradient-card: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(192,132,252,0.05));
+  --success: #34d399;
+  --danger:  #f87171;
+  --warning: #fbbf24;
+  --radius:  16px;
+  --radius-sm: 10px;
+  --shadow:  0 8px 32px rgba(0,0,0,0.4);
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 10% 20%, rgba(99,102,241,0.12), transparent),
+    radial-gradient(ellipse 60% 80% at 90% 80%, rgba(192,132,252,0.08), transparent),
+    radial-gradient(ellipse 50% 50% at 50% 50%, rgba(56,189,248,0.05), transparent);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ================================================================
+   LAYOUT
+   ================================================================ */
+.gallery-page {
+  position: relative;
+  z-index: 1;
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 24px 28px 60px;
+}
+
+/* ================================================================
+   HEADER
+   ================================================================ */
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+  animation: fadeInUp 0.5s ease;
+}
+.header-left h1 {
+  font-size: 1.75rem;
+  font-weight: 800;
+  background: var(--gradient-main);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  letter-spacing: -0.5px;
+}
+.header-left p {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.nav-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--accent-1);
+  background: rgba(99, 102, 241, 0.1);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  transition: all 0.2s ease;
+}
+.nav-link:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: rgba(99, 102, 241, 0.5);
+}
+
+/* ================================================================
+   FILTER BAR
+   ================================================================ */
+.filter-bar {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(10, 14, 26, 0.92);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  animation: fadeInUp 0.5s ease 0.1s both;
+}
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.filter-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-muted);
+}
+.filter-bar select,
+.filter-bar input[type="text"] {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 7px 12px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.2s;
+  min-width: 140px;
+}
+.filter-bar select:focus,
+.filter-bar input[type="text"]:focus {
+  border-color: var(--accent-1);
+}
+.filter-bar select option {
+  background: #1a1f35;
+  color: var(--text-primary);
+}
+
+/* Agreement toggle buttons */
+.toggle-group {
+  display: flex;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.toggle-btn {
+  padding: 7px 14px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: rgba(255,255,255,0.03);
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.toggle-btn.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--accent-1);
+}
+.toggle-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.06);
+}
+
+/* Confidence range */
+.conf-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.conf-range input[type="range"] {
+  -webkit-appearance: none;
+  width: 100px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.1);
+  outline: none;
+}
+.conf-range input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent-1);
+  cursor: pointer;
+}
+.conf-range .conf-val {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  min-width: 30px;
+}
+
+/* Sort */
+.filter-bar .sort-select {
+  min-width: 120px;
+}
+
+/* Results counter */
+.results-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 0 4px;
+  animation: fadeInUp 0.5s ease 0.15s both;
+}
+.results-count {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+.results-count strong {
+  color: var(--accent-1);
+  font-weight: 700;
+}
+
+/* ================================================================
+   IMAGE GRID
+   ================================================================ */
+.image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  animation: fadeInUp 0.5s ease 0.2s both;
+}
+
+/* ================================================================
+   GALLERY CARD
+   ================================================================ */
+.gallery-card {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  backdrop-filter: blur(24px);
+}
+.gallery-card:hover {
+  border-color: var(--border-glow);
+  transform: translateY(-3px);
+  box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+}
+
+.card-image-wrap {
+  position: relative;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: rgba(0,0,0,0.3);
+}
+.card-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+.gallery-card:hover .card-image-wrap img {
+  transform: scale(1.05);
+}
+
+/* Niche badge (top-left) */
+.niche-badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: rgba(10, 14, 26, 0.8);
+  backdrop-filter: blur(8px);
+  color: var(--text-primary);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+
+/* Agreement indicator (top-right) */
+.agreement-dot {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  backdrop-filter: blur(8px);
+}
+.agreement-dot.all_yes {
+  background: rgba(52, 211, 153, 0.25);
+  border: 2px solid var(--success);
+  color: var(--success);
+}
+.agreement-dot.all_no {
+  background: rgba(248, 113, 113, 0.25);
+  border: 2px solid var(--danger);
+  color: var(--danger);
+}
+.agreement-dot.disagreement {
+  background: rgba(251, 191, 36, 0.25);
+  border: 2px solid var(--warning);
+  color: var(--warning);
+}
+
+/* Hover overlay */
+.card-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 40px 12px 12px;
+  background: linear-gradient(to top, rgba(10,14,26,0.95) 0%, transparent 100%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.gallery-card:hover .card-overlay {
+  opacity: 1;
+}
+.card-overlay .owner {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.card-overlay .meta-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+/* Placeholder for broken images */
+.img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(99, 102, 241, 0.05);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* ================================================================
+   DETAIL MODAL
+   ================================================================ */
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  z-index: 1000;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.modal-backdrop.open {
+  display: flex;
+}
+.modal-content {
+  background: linear-gradient(135deg, rgba(15, 20, 45, 0.98), rgba(10, 14, 30, 0.98));
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 1100px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.6);
+  animation: modalIn 0.25s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.95) translateY(10px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.modal-content::-webkit-scrollbar { width: 6px; }
+.modal-content::-webkit-scrollbar-track { background: transparent; }
+.modal-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+.modal-image {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.3);
+  min-height: 300px;
+  max-height: 80vh;
+  overflow: hidden;
+}
+.modal-image img {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.modal-details {
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow-y: auto;
+  max-height: 80vh;
+}
+.modal-details::-webkit-scrollbar { width: 5px; }
+.modal-details::-webkit-scrollbar-track { background: transparent; }
+.modal-details::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* Close button */
+.modal-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(10, 14, 26, 0.8);
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s;
+}
+.modal-close:hover {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+
+/* Nav arrows */
+.modal-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.15);
+  background: rgba(10, 14, 26, 0.8);
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.2s;
+}
+.modal-nav:hover {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--accent-1);
+  border-color: var(--border-glow);
+}
+.modal-nav.prev { left: 12px; }
+.modal-nav.next { right: 12px; }
+
+/* Modal sections */
+.modal-section-title {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.modal-meta {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.meta-item {
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.meta-item .label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.meta-item .value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-top: 2px;
+  word-break: break-word;
+}
+
+/* Agreement summary in modal */
+.agreement-summary {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+}
+.agreement-pill {
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.agreement-pill.all_yes {
+  background: rgba(52, 211, 153, 0.15);
+  color: var(--success);
+}
+.agreement-pill.all_no {
+  background: rgba(248, 113, 113, 0.15);
+  color: var(--danger);
+}
+.agreement-pill.disagreement {
+  background: rgba(251, 191, 36, 0.15);
+  color: var(--warning);
+}
+.agreement-conf {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+/* Evaluation table */
+.eval-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 4px;
+  font-size: 0.8rem;
+}
+.eval-table th {
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+.eval-table td {
+  padding: 8px;
+  background: rgba(255,255,255,0.02);
+}
+.eval-table tr td:first-child { border-radius: 6px 0 0 6px; }
+.eval-table tr td:last-child { border-radius: 0 6px 6px 0; }
+
+.eval-model {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.eval-verdict {
+  font-weight: 700;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+.eval-verdict.yes { color: var(--success); }
+.eval-verdict.no { color: var(--danger); }
+
+.conf-bar-wrap {
+  width: 80px;
+  height: 6px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 3px;
+  overflow: hidden;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+.conf-bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  background: var(--gradient-main);
+  transition: width 0.3s ease;
+}
+.conf-val {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* Expandable reason */
+.eval-reason {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease;
+}
+.eval-reason.expanded {
+  max-height: 200px;
+}
+.reason-toggle {
+  font-size: 0.68rem;
+  color: var(--accent-1);
+  cursor: pointer;
+  padding: 2px 0;
+  user-select: none;
+}
+.reason-toggle:hover {
+  color: var(--accent-2);
+}
+
+/* ================================================================
+   OWNER AUTOCOMPLETE
+   ================================================================ */
+.autocomplete-wrap {
+  position: relative;
+}
+.autocomplete-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: rgba(15, 20, 40, 0.98);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  z-index: 60;
+  display: none;
+}
+.autocomplete-list.open { display: block; }
+.autocomplete-item {
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.autocomplete-item:hover,
+.autocomplete-item.selected {
+  background: rgba(99, 102, 241, 0.15);
+}
+
+/* ================================================================
+   ANIMATIONS
+   ================================================================ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+@media (max-width: 768px) {
+  .modal-content {
+    grid-template-columns: 1fr;
+  }
+  .modal-image {
+    max-height: 50vh;
+  }
+  .filter-bar {
+    gap: 8px;
+  }
+  .image-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="gallery-page">
+
+  <!-- ============================================================
+       HEADER
+       ============================================================ -->
+  <header class="header">
+    <div class="header-left">
+      <h1>Image Gallery</h1>
+      <p>Browse all evaluated images with model classifications</p>
+    </div>
+    <div class="header-right">
+      <a href="/" class="nav-link">Dashboard</a>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       FILTER BAR
+       ============================================================ -->
+  <div class="filter-bar" id="filter-bar">
+    <div class="filter-group">
+      <span class="filter-label">Niche</span>
+      <select id="filter-niche">
+        <option value="">All Niches</option>
+      </select>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Agreement</span>
+      <div class="toggle-group">
+        <button class="toggle-btn active" data-agreement="">All</button>
+        <button class="toggle-btn" data-agreement="all_yes">All YES</button>
+        <button class="toggle-btn" data-agreement="disagreement">Mixed</button>
+        <button class="toggle-btn" data-agreement="all_no">All NO</button>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Owner</span>
+      <div class="autocomplete-wrap">
+        <input type="text" id="filter-owner" placeholder="Search owner..." autocomplete="off">
+        <div class="autocomplete-list" id="owner-autocomplete"></div>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Min Confidence</span>
+      <div class="conf-range">
+        <input type="range" id="filter-conf" min="0" max="100" value="0">
+        <span class="conf-val" id="conf-display">0%</span>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Sort By</span>
+      <select id="filter-sort" class="sort-select">
+        <option value="niche">Niche</option>
+        <option value="owner">Owner</option>
+        <option value="likes">Likes</option>
+        <option value="confidence">Confidence</option>
+        <option value="date">Date</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- ============================================================
+       RESULTS BAR
+       ============================================================ -->
+  <div class="results-bar">
+    <span class="results-count" id="results-count">Loading...</span>
+  </div>
+
+  <!-- ============================================================
+       IMAGE GRID
+       ============================================================ -->
+  <div class="image-grid" id="image-grid"></div>
+
+</div><!-- .gallery-page -->
+
+<!-- ============================================================
+     DETAIL MODAL
+     ============================================================ -->
+<div class="modal-backdrop" id="modal-backdrop">
+  <button class="modal-nav prev" id="modal-prev" title="Previous (Left Arrow)">&larr;</button>
+  <button class="modal-nav next" id="modal-next" title="Next (Right Arrow)">&rarr;</button>
+  <div class="modal-content" id="modal-content">
+    <button class="modal-close" id="modal-close" title="Close (Escape)">&times;</button>
+    <div class="modal-image" id="modal-image"></div>
+    <div class="modal-details" id="modal-details"></div>
+  </div>
+</div>
+
+<script>
+// =====================================================================
+// DATA
+// =====================================================================
+const DATA = {{ data | safe }};
+const ITEMS = DATA.items || [];
+const FILTERS = DATA.filters || {};
+
+// =====================================================================
+// PALETTE (matches dashboard)
+// =====================================================================
+const PALETTE = [
+  '#818cf8', '#38bdf8', '#34d399', '#c084fc',
+  '#f472b6', '#fbbf24', '#fb923c', '#a3e635'
+];
+const MODEL_COLORS = {};
+(FILTERS.models || []).forEach((m, i) => MODEL_COLORS[m] = PALETTE[i % PALETTE.length]);
+
+// =====================================================================
+// STATE
+// =====================================================================
+let filteredItems = [];
+let currentModalIndex = -1;
+
+// =====================================================================
+// HELPERS
+// =====================================================================
+function niceName(slug) {
+  return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function agreementLabel(a) {
+  if (a === 'all_yes') return 'All YES';
+  if (a === 'all_no') return 'All NO';
+  return 'Disagreement';
+}
+
+function agreementSymbol(a) {
+  if (a === 'all_yes') return '\u2713';
+  if (a === 'all_no') return '\u2717';
+  return '!';
+}
+
+function formatDate(iso) {
+  if (!iso) return '\u2014';
+  const d = new Date(iso);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// =====================================================================
+// POPULATE FILTER OPTIONS
+// =====================================================================
+(function initFilters() {
+  const nicheSelect = document.getElementById('filter-niche');
+  (FILTERS.niches || []).forEach(n => {
+    const opt = document.createElement('option');
+    opt.value = n;
+    opt.textContent = niceName(n);
+    nicheSelect.appendChild(opt);
+  });
+})();
+
+// =====================================================================
+// FILTER LOGIC
+// =====================================================================
+function getFilters() {
+  const niche = document.getElementById('filter-niche').value;
+  const agreementBtn = document.querySelector('.toggle-btn.active');
+  const agreement = agreementBtn ? agreementBtn.dataset.agreement : '';
+  const owner = document.getElementById('filter-owner').value.trim().toLowerCase();
+  const minConf = parseInt(document.getElementById('filter-conf').value, 10) / 100;
+  const sort = document.getElementById('filter-sort').value;
+  return { niche, agreement, owner, minConf, sort };
+}
+
+function applyFilters() {
+  const f = getFilters();
+  filteredItems = ITEMS.filter(item => {
+    if (f.niche && item.niche !== f.niche) return false;
+    if (f.agreement && item.agreement !== f.agreement) return false;
+    if (f.owner && !item.owner.toLowerCase().includes(f.owner)) return false;
+    if (item.avg_confidence < f.minConf) return false;
+    return true;
+  });
+
+  // Sort
+  const sortFns = {
+    niche: (a, b) => a.niche.localeCompare(b.niche) || a.filename.localeCompare(b.filename),
+    owner: (a, b) => a.owner.localeCompare(b.owner) || a.niche.localeCompare(b.niche),
+    likes: (a, b) => b.likes - a.likes,
+    confidence: (a, b) => b.avg_confidence - a.avg_confidence,
+    date: (a, b) => (b.date || '').localeCompare(a.date || ''),
+  };
+  if (sortFns[f.sort]) filteredItems.sort(sortFns[f.sort]);
+
+  updateURL(f);
+  renderGrid();
+}
+
+function updateURL(f) {
+  const params = new URLSearchParams();
+  if (f.niche) params.set('niche', f.niche);
+  if (f.agreement) params.set('agreement', f.agreement);
+  if (f.owner) params.set('owner', f.owner);
+  if (f.minConf > 0) params.set('conf', Math.round(f.minConf * 100));
+  if (f.sort !== 'niche') params.set('sort', f.sort);
+  const qs = params.toString();
+  const url = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+  history.replaceState(null, '', url);
+}
+
+function loadFiltersFromURL() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('niche')) document.getElementById('filter-niche').value = params.get('niche');
+  if (params.has('agreement')) {
+    document.querySelectorAll('.toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.agreement === params.get('agreement'));
+    });
+  }
+  if (params.has('owner')) document.getElementById('filter-owner').value = params.get('owner');
+  if (params.has('conf')) {
+    const v = parseInt(params.get('conf'), 10);
+    document.getElementById('filter-conf').value = v;
+    document.getElementById('conf-display').textContent = v + '%';
+  }
+  if (params.has('sort')) document.getElementById('filter-sort').value = params.get('sort');
+}
+
+// =====================================================================
+// RENDER GRID (batch: first 40 immediate, rest via rAF)
+// =====================================================================
+function renderGrid() {
+  const grid = document.getElementById('image-grid');
+  grid.innerHTML = '';
+
+  document.getElementById('results-count').innerHTML =
+    `Showing <strong>${filteredItems.length}</strong> of <strong>${ITEMS.length}</strong> images`;
+
+  const BATCH = 40;
+  const first = filteredItems.slice(0, BATCH);
+  const rest = filteredItems.slice(BATCH);
+
+  first.forEach((item, i) => grid.appendChild(createCard(item, i)));
+
+  if (rest.length > 0) {
+    requestAnimationFrame(function renderRest() {
+      const frag = document.createDocumentFragment();
+      rest.forEach((item, i) => frag.appendChild(createCard(item, BATCH + i)));
+      grid.appendChild(frag);
+    });
+  }
+}
+
+function createCard(item, index) {
+  const card = document.createElement('div');
+  card.className = 'gallery-card';
+  card.dataset.index = index;
+
+  const sym = agreementSymbol(item.agreement);
+  const confPct = Math.round(item.avg_confidence * 100);
+
+  card.innerHTML = `
+    <div class="card-image-wrap">
+      <img src="${item.thumb_url}" alt="${item.filename}"
+           loading="lazy" decoding="async"
+           onerror="this.parentElement.innerHTML='<div class=img-placeholder>Image unavailable</div>'">
+      <span class="niche-badge">${niceName(item.niche)}</span>
+      <span class="agreement-dot ${item.agreement}" title="${agreementLabel(item.agreement)}">${sym}</span>
+      <div class="card-overlay">
+        <span class="owner">${item.owner || 'Unknown'}</span>
+        <div class="meta-row">
+          <span>${item.likes} likes</span>
+          <span>${confPct}% conf</span>
+        </div>
+      </div>
+    </div>
+  `;
+
+  card.addEventListener('click', () => openModal(index));
+  return card;
+}
+
+// =====================================================================
+// DETAIL MODAL
+// =====================================================================
+function openModal(index) {
+  if (index < 0 || index >= filteredItems.length) return;
+  currentModalIndex = index;
+  const item = filteredItems[index];
+  const backdrop = document.getElementById('modal-backdrop');
+
+  // Image
+  document.getElementById('modal-image').innerHTML = `
+    <img src="${item.image_url}" alt="${item.filename}"
+         onerror="this.src='${item.thumb_url}'">
+  `;
+
+  // Details
+  const details = document.getElementById('modal-details');
+  const agLabel = agreementLabel(item.agreement);
+  const confPct = Math.round(item.avg_confidence * 100);
+
+  let evalRows = '';
+  item.evaluations.forEach((ev, i) => {
+    const vClass = ev.verdict === 'YES' ? 'yes' : 'no';
+    const barW = Math.round(ev.confidence * 100);
+    const color = MODEL_COLORS[ev.model] || '#818cf8';
+    const reason = ev.reason ? ev.reason.replace(/</g, '&lt;').replace(/>/g, '&gt;') : '';
+    evalRows += `
+      <tr>
+        <td><span class="eval-model" style="color:${color}">${ev.model}</span></td>
+        <td><span class="eval-verdict ${vClass}">${ev.verdict}</span></td>
+        <td>
+          <span class="conf-bar-wrap"><span class="conf-bar-fill" style="width:${barW}%"></span></span>
+          <span class="conf-val">${barW}%</span>
+        </td>
+      </tr>
+      ${reason ? `
+      <tr>
+        <td colspan="3" style="padding:0 8px 4px">
+          <span class="reason-toggle" onclick="this.nextElementSibling.classList.toggle('expanded')">Show reason</span>
+          <div class="eval-reason">${reason}</div>
+        </td>
+      </tr>` : ''}
+    `;
+  });
+
+  details.innerHTML = `
+    <div>
+      <div class="modal-section-title">Post Details</div>
+      <div class="modal-meta">
+        <div class="meta-item">
+          <div class="label">Owner</div>
+          <div class="value">${item.owner || '\u2014'}</div>
+        </div>
+        <div class="meta-item">
+          <div class="label">Niche</div>
+          <div class="value">${niceName(item.niche)}</div>
+        </div>
+        <div class="meta-item">
+          <div class="label">Title</div>
+          <div class="value">${item.title || '\u2014'}</div>
+        </div>
+        <div class="meta-item">
+          <div class="label">Likes</div>
+          <div class="value">${item.likes}</div>
+        </div>
+        <div class="meta-item">
+          <div class="label">Comments</div>
+          <div class="value">${item.comments}</div>
+        </div>
+        <div class="meta-item">
+          <div class="label">Date</div>
+          <div class="value">${formatDate(item.date)}</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="modal-section-title">Agreement</div>
+      <div class="agreement-summary">
+        <span class="agreement-pill ${item.agreement}">${agLabel}</span>
+        <span class="agreement-conf">Avg confidence: ${confPct}%</span>
+      </div>
+    </div>
+    <div>
+      <div class="modal-section-title">Model Evaluations</div>
+      <table class="eval-table">
+        <thead><tr><th>Model</th><th>Verdict</th><th>Confidence</th></tr></thead>
+        <tbody>${evalRows}</tbody>
+      </table>
+    </div>
+  `;
+
+  backdrop.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('open');
+  document.body.style.overflow = '';
+  currentModalIndex = -1;
+}
+
+function navModal(dir) {
+  const next = currentModalIndex + dir;
+  if (next >= 0 && next < filteredItems.length) openModal(next);
+}
+
+// =====================================================================
+// EVENT LISTENERS
+// =====================================================================
+
+// Filter controls
+document.getElementById('filter-niche').addEventListener('change', applyFilters);
+document.getElementById('filter-sort').addEventListener('change', applyFilters);
+document.getElementById('filter-owner').addEventListener('input', applyFilters);
+document.getElementById('filter-conf').addEventListener('input', function() {
+  document.getElementById('conf-display').textContent = this.value + '%';
+  applyFilters();
+});
+
+// Agreement toggles
+document.querySelectorAll('.toggle-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    applyFilters();
+  });
+});
+
+// Owner autocomplete
+(function initAutocomplete() {
+  const input = document.getElementById('filter-owner');
+  const list = document.getElementById('owner-autocomplete');
+  const owners = FILTERS.owners || [];
+
+  input.addEventListener('focus', show);
+  input.addEventListener('input', show);
+  document.addEventListener('click', e => {
+    if (!e.target.closest('.autocomplete-wrap')) list.classList.remove('open');
+  });
+
+  function show() {
+    const val = input.value.trim().toLowerCase();
+    const matches = val ? owners.filter(o => o.toLowerCase().includes(val)) : owners;
+    if (matches.length === 0 || (matches.length === 1 && matches[0].toLowerCase() === val)) {
+      list.classList.remove('open');
+      return;
+    }
+    list.innerHTML = '';
+    matches.slice(0, 15).forEach(o => {
+      const item = document.createElement('div');
+      item.className = 'autocomplete-item';
+      item.textContent = o;
+      item.addEventListener('click', () => {
+        input.value = o;
+        list.classList.remove('open');
+        applyFilters();
+      });
+      list.appendChild(item);
+    });
+    list.classList.add('open');
+  }
+})();
+
+// Modal events
+document.getElementById('modal-close').addEventListener('click', closeModal);
+document.getElementById('modal-backdrop').addEventListener('click', e => {
+  if (e.target === document.getElementById('modal-backdrop')) closeModal();
+});
+document.getElementById('modal-prev').addEventListener('click', e => { e.stopPropagation(); navModal(-1); });
+document.getElementById('modal-next').addEventListener('click', e => { e.stopPropagation(); navModal(1); });
+
+// Keyboard nav
+document.addEventListener('keydown', e => {
+  if (currentModalIndex === -1) return;
+  if (e.key === 'Escape') closeModal();
+  if (e.key === 'ArrowLeft') navModal(-1);
+  if (e.key === 'ArrowRight') navModal(1);
+});
+
+// =====================================================================
+// DEEP LINK: ?highlight=niche/filename auto-opens modal
+// =====================================================================
+// Capture highlight before applyFilters() strips it from URL
+const _initialHighlight = new URLSearchParams(window.location.search).get('highlight');
+
+function handleHighlight() {
+  const highlight = _initialHighlight;
+  if (!highlight) return;
+
+  // Find the item index in the full (unfiltered) list first, then in filtered
+  const idx = filteredItems.findIndex(item => item.key === highlight);
+  if (idx >= 0) {
+    setTimeout(() => openModal(idx), 300);
+  } else {
+    // Item might be filtered out — clear filters and try again
+    document.getElementById('filter-niche').value = '';
+    document.querySelectorAll('.toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.agreement === '');
+    });
+    document.getElementById('filter-owner').value = '';
+    document.getElementById('filter-conf').value = 0;
+    document.getElementById('conf-display').textContent = '0%';
+    applyFilters();
+    const retryIdx = filteredItems.findIndex(item => item.key === highlight);
+    if (retryIdx >= 0) setTimeout(() => openModal(retryIdx), 300);
+  }
+}
+
+// =====================================================================
+// INIT
+// =====================================================================
+loadFiltersFromURL();
+applyFilters();
+handleHighlight();
+</script>
+</body>
+</html>
