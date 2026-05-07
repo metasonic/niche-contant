@@ -686,6 +686,225 @@ body::before {
 }
 
 /* ================================================================
+   GROUND TRUTH SECTION
+   ================================================================ */
+.gt-section-title {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--accent-6);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gt-section-title::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent-6);
+}
+.gt-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.gt-kpi {
+  background: linear-gradient(135deg, rgba(52,211,153,0.06), rgba(56,189,248,0.04));
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(52, 211, 153, 0.2);
+  border-radius: var(--radius);
+  padding: 20px 22px;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s, border-color 0.3s;
+}
+.gt-kpi:hover {
+  transform: translateY(-2px);
+  border-color: rgba(52, 211, 153, 0.4);
+}
+.gt-kpi::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--accent-6);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+/* Confusion matrix */
+.confusion-grid {
+  display: grid;
+  grid-template-columns: auto 1fr 1fr;
+  grid-template-rows: auto 1fr 1fr;
+  gap: 4px;
+  max-width: 320px;
+  margin: 0 auto;
+}
+.confusion-cell {
+  padding: 16px 12px;
+  border-radius: 8px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.confusion-cell .cell-label {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  opacity: 0.8;
+  margin-bottom: 4px;
+}
+.confusion-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  padding: 8px;
+}
+.confusion-corner { /* empty top-left cell */ }
+.cm-tp { background: rgba(52, 211, 153, 0.2); color: var(--success); }
+.cm-fp { background: rgba(251, 191, 36, 0.2); color: var(--warning); }
+.cm-fn { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
+.cm-tn { background: rgba(56, 189, 248, 0.15); color: var(--accent-5); }
+
+/* Model selector for confusion matrix */
+.cm-model-select {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  outline: none;
+  margin-bottom: 16px;
+}
+.cm-model-select option {
+  background: #1a1f35;
+  color: var(--text-primary);
+}
+
+/* Tooltip component */
+.metric-with-tip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.tip-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.15);
+  color: var(--text-muted);
+  font-size: 0.55rem;
+  font-weight: 700;
+  cursor: help;
+  flex-shrink: 0;
+}
+.tip-icon:hover .tip-content {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+.tip-content {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  width: max-content;
+  max-width: 320px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(15, 20, 40, 0.92);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 400;
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: normal;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.2s, transform 0.2s, visibility 0.2s;
+  z-index: 100;
+  pointer-events: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+}
+
+/* Heatmap toggle */
+.heatmap-toggle {
+  display: inline-flex;
+  gap: 0;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  margin-bottom: 12px;
+}
+.heatmap-toggle-btn {
+  padding: 6px 14px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: rgba(255,255,255,0.03);
+  color: var(--text-secondary);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.heatmap-toggle-btn:not(:last-child) {
+  border-right: 1px solid var(--border);
+}
+.heatmap-toggle-btn.active {
+  background: rgba(99, 102, 241, 0.2);
+  color: var(--accent-1);
+}
+.heatmap-toggle-btn:hover:not(.active) {
+  background: rgba(255,255,255,0.06);
+}
+
+/* Human label badge in drilldown/disagreement cards */
+.human-badge-inline {
+  display: inline-block;
+  padding: 1px 7px;
+  border-radius: 8px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.human-badge-inline.yes {
+  background: rgba(52, 211, 153, 0.2);
+  color: var(--success);
+}
+.human-badge-inline.no {
+  background: rgba(248, 113, 113, 0.2);
+  color: var(--danger);
+}
+.human-badge-inline.unl {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+}
+
+/* ================================================================
    RESPONSIVE
    ================================================================ */
 @media (max-width: 1024px) {
@@ -744,6 +963,53 @@ body::before {
   <!-- KPI Strip -->
   <div class="kpi-grid" id="kpi-grid"></div>
 
+  <!-- Ground Truth KPIs (conditional, rendered by JS) -->
+  <div id="gt-section" style="display:none;">
+    <div class="gt-section-title">Human Ground Truth</div>
+    <div class="gt-kpi-grid" id="gt-kpi-grid"></div>
+  </div>
+
+  <!-- Ground Truth: Accuracy Chart + Confusion Matrix (conditional) -->
+  <div class="grid-2" id="gt-charts-row" style="display:none;">
+    <div class="card animate-in">
+      <div class="card-title">Model Accuracy vs Ground Truth</div>
+      <div class="chart-wrapper" style="height:320px;">
+        <canvas id="gtAccuracyChart"></canvas>
+      </div>
+    </div>
+    <div class="card animate-in">
+      <div class="card-title">Confusion Matrix</div>
+      <div style="text-align:center;">
+        <select class="cm-model-select" id="cm-model-select"></select>
+        <div id="confusion-matrix"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ground Truth: Calibration Chart + ECE Bar (conditional) -->
+  <div class="grid-2" id="gt-calibration-row" style="display:none;">
+    <div class="card animate-in">
+      <div class="card-title">
+        <span class="metric-with-tip">Confidence Calibration
+          <span class="tip-icon">i<span class="tip-content">Shows whether a model's confidence scores are trustworthy. A perfectly calibrated model at 80% confidence is correct 80% of the time. Points above the diagonal = underconfident, below = overconfident.</span></span>
+        </span>
+      </div>
+      <div class="chart-wrapper" style="height:320px;">
+        <canvas id="calibrationChart"></canvas>
+      </div>
+    </div>
+    <div class="card animate-in">
+      <div class="card-title">
+        <span class="metric-with-tip">Expected Calibration Error (ECE)
+          <span class="tip-icon">i<span class="tip-content">Expected Calibration Error — weighted average gap between predicted confidence and actual accuracy. Lower is better. &lt;5% well-calibrated, 5–15% moderate, &gt;15% poorly calibrated. Low ECE means you can trust confidence scores for threshold-based filtering.</span></span>
+        </span>
+      </div>
+      <div class="chart-wrapper" style="height:320px;">
+        <canvas id="eceChart"></canvas>
+      </div>
+    </div>
+  </div>
+
   <!-- Row 1: Model Accuracy Bar + Agreement Donut -->
   <div class="grid-2">
     <div class="card animate-in delay-2">
@@ -781,6 +1047,10 @@ body::before {
   <div class="grid-full">
     <div class="card animate-in delay-4">
       <div class="card-title">Model &times; Niche — Classification Rate Heatmap</div>
+      <div class="heatmap-toggle" id="heatmap-toggle-1" style="display:none;">
+        <button class="heatmap-toggle-btn active" data-mode="rate">Classification Rate</button>
+        <button class="heatmap-toggle-btn" data-mode="gt">Accuracy vs Ground Truth</button>
+      </div>
       <div class="heatmap-container" id="heatmap-container"></div>
     </div>
   </div>
@@ -789,6 +1059,10 @@ body::before {
   <div class="grid-full">
     <div class="card animate-in delay-5">
       <div class="card-title">Model &times; Niche — Average Confidence % Heatmap</div>
+      <div class="heatmap-toggle" id="heatmap-toggle-2" style="display:none;">
+        <button class="heatmap-toggle-btn active" data-mode="conf">Avg Confidence</button>
+        <button class="heatmap-toggle-btn" data-mode="gt">Accuracy vs Ground Truth</button>
+      </div>
       <div class="heatmap-container" id="conf-heatmap-container"></div>
     </div>
   </div>
@@ -799,7 +1073,7 @@ body::before {
       <div class="card-title">Model Performance Summary</div>
       <div style="overflow-x:auto;">
         <table class="data-table" id="model-table">
-          <thead>
+          <thead id="model-table-head">
             <tr>
               <th>Model</th>
               <th>Images</th>
@@ -1137,6 +1411,16 @@ function renderDrilldownContent(container, data) {
     { label: 'Median', value: (s.median * 100).toFixed(1) + '%', color: 'var(--accent-2)' },
     { label: 'Range', value: (s.min * 100).toFixed(0) + '–' + (s.max * 100).toFixed(0) + '%', color: 'var(--accent-1)' },
   ];
+  // Add GT accuracy stat if labels exist in drilldown
+  if (data.items && data.items.some(i => i.human_label)) {
+    let correct = 0, labeled = 0;
+    data.items.forEach(i => {
+      if (i.human_label) { labeled++; if (i.verdict === i.human_label) correct++; }
+    });
+    if (labeled > 0) {
+      stats.push({ label: 'GT Accuracy', value: ((correct/labeled)*100).toFixed(0) + '%', color: 'var(--accent-6)' });
+    }
+  }
   stats.forEach(st => {
     html += `<div class="dd-stat">
       <div class="dd-stat-label">${st.label}</div>
@@ -1157,12 +1441,16 @@ function renderDrilldownContent(container, data) {
     const verdictColor = item.verdict === 'YES' ? 'var(--success)' : 'var(--danger)';
     const confPct = (item.probability * 100).toFixed(1);
     const reason = (item.reason || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const hl = item.human_label;
+    const hlBadge = hl
+      ? `<span class="human-badge-inline ${hl === 'YES' ? 'yes' : 'no'}">Human: ${hl}</span>`
+      : (DATA.ground_truth ? '<span class="human-badge-inline unl">Unlabeled</span>' : '');
     html += `<div class="dd-card">
       <img class="dd-card-thumb" src="${item.thumb_url}" alt="${item.filename}"
            loading="lazy" onclick="window.open('${item.image_url}','_blank')"
            onerror="this.style.display='none'">
       <div class="dd-card-info">
-        <div class="dd-card-filename" title="${item.filename}">${item.filename}</div>
+        <div class="dd-card-filename" title="${item.filename}">${item.filename} ${hlBadge}</div>
         <div class="dd-card-verdict" style="color:${verdictColor}">${item.verdict}</div>
         <div class="dd-card-conf">Confidence: ${confPct}%</div>
         ${reason ? `<div class="dd-card-reason" onclick="this.classList.toggle('expanded')" title="Click to expand">${reason}</div>` : ''}
@@ -1247,6 +1535,7 @@ renderHeatmap('conf-heatmap-container', DATA.confidence_heatmap, 100, true, open
     container.innerHTML = '<p style="color:var(--text-muted);padding:20px;">No disagreements found — all models agree on every image.</p>';
     return;
   }
+  const gtLabelMap = DATA.ground_truth ? DATA.ground_truth.label_map : {};
   samples.forEach(s => {
     const card = document.createElement('a');
     card.className = 'disagree-card';
@@ -1263,12 +1552,399 @@ renderHeatmap('conf-heatmap-container', DATA.confidence_heatmap, 100, true, open
         </div>
       `;
     });
+    const hl = gtLabelMap[s.image];
+    const hlBadge = hl
+      ? `<span class="human-badge-inline ${hl === 'YES' ? 'yes' : 'no'}">Human: ${hl}</span>`
+      : '';
     card.innerHTML = `
-      <div class="img-label">${s.image}</div>
+      <div class="img-label">${s.image} ${hlBadge}</div>
       ${verdictRows}
     `;
     container.appendChild(card);
   });
+})();
+
+// ================================================================
+// GROUND TRUTH (conditional — only when labels exist)
+// ================================================================
+(function() {
+  const GT = DATA.ground_truth;
+  if (!GT) return;
+
+  const ls = GT.label_stats;
+  const totalImages = DATA.kpis.total_images_evaluated;
+
+  // Helper: tooltip HTML
+  function tip(text) {
+    return `<span class="tip-icon">i<span class="tip-content">${text}</span></span>`;
+  }
+
+  // --- GT KPI Strip (6 KPIs) ---
+  document.getElementById('gt-section').style.display = '';
+  const gtGrid = document.getElementById('gt-kpi-grid');
+  const coverage = totalImages ? ((ls.total / totalImages) * 100).toFixed(1) : 0;
+
+  // Find best kappa
+  const gtModels = DATA.models.filter(m => GT.per_model[m] && GT.per_model[m].total_labeled > 0);
+  let bestKappa = null, bestKappaModel = '';
+  gtModels.forEach(m => {
+    const k = GT.per_model[m].kappa;
+    if (k != null && (bestKappa === null || k > bestKappa)) {
+      bestKappa = k;
+      bestKappaModel = m;
+    }
+  });
+
+  const mv = GT.majority_vote;
+  const gtKPIs = [
+    { label: 'Images Labeled', value: ls.total, sub: coverage + '% coverage', tip: '' },
+    { label: 'Ground Truth YES', value: ls.yes, sub: 'Human-verified positive', tip: '' },
+    { label: 'Ground Truth NO', value: ls.no, sub: 'Human-verified negative', tip: '' },
+    { label: 'Model Accuracy (GT)', value: GT.overall_accuracy != null ? GT.overall_accuracy + '%' : 'n/a', sub: 'vs human labels', tip: '' },
+    { label: 'Best Kappa', value: bestKappa != null ? bestKappa.toFixed(3) : 'n/a', sub: bestKappaModel || '—',
+      tip: "Measures classification quality beyond chance agreement. Unlike raw accuracy, Kappa penalizes a model that simply predicts the majority class. Interpretation: &lt;0 worse than random, 0 random, 0.21–0.40 fair, 0.41–0.60 moderate, 0.61–0.80 substantial, 0.81–1.00 near-perfect." },
+    { label: 'Majority Vote', value: mv && mv.accuracy != null ? mv.accuracy + '%' : 'n/a', sub: mv ? mv.correct + '/' + mv.total + ' correct' : '—',
+      tip: "Accuracy when using the majority verdict across all models. If ensemble accuracy exceeds every individual model, combining models adds value. If a single model matches the ensemble, it alone may suffice." },
+  ];
+  gtKPIs.forEach(kpi => {
+    const d = document.createElement('div');
+    d.className = 'gt-kpi animate-in';
+    const tipHtml = kpi.tip ? ' ' + tip(kpi.tip) : '';
+    d.innerHTML = `
+      <div class="kpi-label"><span class="metric-with-tip">${kpi.label}${tipHtml}</span></div>
+      <div class="kpi-value">${kpi.value}</div>
+      <div class="kpi-sub">${kpi.sub}</div>
+    `;
+    gtGrid.appendChild(d);
+  });
+
+  // --- GT Accuracy Chart (horizontal grouped bar) with Specificity ---
+  document.getElementById('gt-charts-row').style.display = '';
+  if (gtModels.length > 0) {
+    const accData = gtModels.map(m => GT.per_model[m].accuracy);
+    const precData = gtModels.map(m => GT.per_model[m].precision);
+    const recData = gtModels.map(m => GT.per_model[m].recall);
+    const specData = gtModels.map(m => GT.per_model[m].specificity);
+    new Chart(document.getElementById('gtAccuracyChart'), {
+      type: 'bar',
+      data: {
+        labels: gtModels,
+        datasets: [
+          {
+            label: 'Accuracy',
+            data: accData,
+            backgroundColor: 'rgba(52, 211, 153, 0.5)',
+            borderColor: '#34d399',
+            borderWidth: 2,
+            borderRadius: 6,
+          },
+          {
+            label: 'Precision',
+            data: precData,
+            backgroundColor: 'rgba(56, 189, 248, 0.5)',
+            borderColor: '#38bdf8',
+            borderWidth: 2,
+            borderRadius: 6,
+          },
+          {
+            label: 'Recall',
+            data: recData,
+            backgroundColor: 'rgba(192, 132, 252, 0.5)',
+            borderColor: '#c084fc',
+            borderWidth: 2,
+            borderRadius: 6,
+          },
+          {
+            label: 'Specificity',
+            data: specData,
+            backgroundColor: 'rgba(251, 191, 36, 0.5)',
+            borderColor: '#fbbf24',
+            borderWidth: 2,
+            borderRadius: 6,
+          },
+        ]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataset.label + ': ' + (ctx.raw != null ? ctx.raw + '%' : 'n/a')
+            }
+          }
+        },
+        scales: {
+          x: { min: 0, max: 100, grid: { color: 'rgba(99,102,241,0.08)' }, ticks: { callback: v => v + '%' } },
+          y: { grid: { display: false }, ticks: { font: { weight: 600 } } }
+        }
+      }
+    });
+  }
+
+  // --- Calibration Line Chart + ECE Bar Chart ---
+  if (gtModels.length > 0) {
+    document.getElementById('gt-calibration-row').style.display = '';
+
+    // Calibration line chart
+    const calDatasets = [];
+    const colorList = Object.values(MODEL_COLORS);
+    gtModels.forEach((m, i) => {
+      const buckets = GT.calibration[m] || [];
+      const points = buckets.filter(b => b[3] > 0).map(b => ({ x: b[1] * 100, y: b[2] }));
+      if (points.length > 0) {
+        calDatasets.push({
+          label: m,
+          data: points,
+          borderColor: colorList[i % colorList.length],
+          backgroundColor: colorList[i % colorList.length] + '33',
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          tension: 0.2,
+          fill: false,
+        });
+      }
+    });
+    // Perfect calibration diagonal
+    calDatasets.push({
+      label: 'Perfect',
+      data: [{x:0,y:0},{x:20,y:20},{x:40,y:40},{x:60,y:60},{x:80,y:80},{x:100,y:100}],
+      borderColor: 'rgba(148,163,184,0.4)',
+      borderDash: [6, 4],
+      pointRadius: 0,
+      fill: false,
+    });
+
+    new Chart(document.getElementById('calibrationChart'), {
+      type: 'scatter',
+      data: { datasets: calDatasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        showLine: true,
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 10 } } },
+          tooltip: {
+            callbacks: {
+              label: ctx => ctx.dataset.label + ': conf=' + (ctx.raw.x != null ? ctx.raw.x.toFixed(1) + '%' : 'n/a') + ', acc=' + (ctx.raw.y != null ? ctx.raw.y.toFixed(1) + '%' : 'n/a')
+            }
+          }
+        },
+        scales: {
+          x: { min: 0, max: 100, title: { display: true, text: 'Mean Confidence %', font: { size: 11 } }, grid: { color: 'rgba(99,102,241,0.08)' }, ticks: { callback: v => v + '%' } },
+          y: { min: 0, max: 100, title: { display: true, text: 'Actual Accuracy %', font: { size: 11 } }, grid: { color: 'rgba(99,102,241,0.08)' }, ticks: { callback: v => v + '%' } }
+        }
+      }
+    });
+
+    // ECE horizontal bar chart
+    const eceModels = gtModels.filter(m => GT.per_model[m].ece != null);
+    const eceValues = eceModels.map(m => GT.per_model[m].ece);
+    const eceBgColors = eceValues.map(v => v <= 5 ? 'rgba(52,211,153,0.5)' : v <= 15 ? 'rgba(251,191,36,0.5)' : 'rgba(248,113,113,0.5)');
+    const eceBorderColors = eceValues.map(v => v <= 5 ? '#34d399' : v <= 15 ? '#fbbf24' : '#f87171');
+
+    new Chart(document.getElementById('eceChart'), {
+      type: 'bar',
+      data: {
+        labels: eceModels,
+        datasets: [{
+          label: 'ECE %',
+          data: eceValues,
+          backgroundColor: eceBgColors,
+          borderColor: eceBorderColors,
+          borderWidth: 2,
+          borderRadius: 6,
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: ctx => 'ECE: ' + ctx.raw.toFixed(1) + '%' } }
+        },
+        scales: {
+          x: { min: 0, grid: { color: 'rgba(99,102,241,0.08)' }, ticks: { callback: v => v + '%' }, title: { display: true, text: 'ECE % (lower is better)', font: { size: 11 } } },
+          y: { grid: { display: false }, ticks: { font: { weight: 600 } } }
+        }
+      }
+    });
+  }
+
+  // --- Confusion Matrix ---
+  const cmSelect = document.getElementById('cm-model-select');
+  gtModels.forEach((m, i) => {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m;
+    if (i === 0) opt.selected = true;
+    cmSelect.appendChild(opt);
+  });
+
+  function renderConfusionMatrix(model) {
+    const cm = GT.per_model[model];
+    if (!cm || cm.total_labeled === 0) {
+      document.getElementById('confusion-matrix').innerHTML =
+        '<p style="color:var(--text-muted);padding:20px;">No labeled data for this model</p>';
+      return;
+    }
+    const kappaStr = cm.kappa != null ? cm.kappa.toFixed(3) : 'n/a';
+    const specStr = cm.specificity != null ? cm.specificity + '%' : 'n/a';
+    document.getElementById('confusion-matrix').innerHTML = `
+      <div class="confusion-grid">
+        <div class="confusion-corner"></div>
+        <div class="confusion-header">Predicted YES</div>
+        <div class="confusion-header">Predicted NO</div>
+        <div class="confusion-header" style="writing-mode:vertical-lr;transform:rotate(180deg);">Actual YES</div>
+        <div class="confusion-cell cm-tp">
+          <div class="cell-label">True Pos</div>
+          ${cm.tp}
+        </div>
+        <div class="confusion-cell cm-fn">
+          <div class="cell-label">False Neg</div>
+          ${cm.fn}
+        </div>
+        <div class="confusion-header" style="writing-mode:vertical-lr;transform:rotate(180deg);">Actual NO</div>
+        <div class="confusion-cell cm-fp">
+          <div class="cell-label">False Pos</div>
+          ${cm.fp}
+        </div>
+        <div class="confusion-cell cm-tn">
+          <div class="cell-label">True Neg</div>
+          ${cm.tn}
+        </div>
+      </div>
+      <div style="margin-top:12px;font-size:0.75rem;color:var(--text-secondary);">
+        Accuracy: <strong>${cm.accuracy != null ? cm.accuracy + '%' : 'n/a'}</strong> &middot;
+        F1: <strong>${cm.f1 != null ? cm.f1 + '%' : 'n/a'}</strong> &middot;
+        n=${cm.total_labeled} &middot;
+        Kappa: <strong>${kappaStr}</strong> &middot;
+        Specificity: <strong>${specStr}</strong>
+      </div>
+    `;
+  }
+
+  if (gtModels.length > 0) renderConfusionMatrix(gtModels[0]);
+  cmSelect.addEventListener('change', () => renderConfusionMatrix(cmSelect.value));
+
+  // --- Heatmap toggle ---
+  function renderGTHeatmap(containerId, fallbackData, fallbackMax, fallbackAsPercent) {
+    const gtHeatData = GT.heatmap;
+    const models = DATA.models;
+    const niches = DATA.niches;
+    const container = document.getElementById(containerId);
+    let html = '<table class="heatmap-table"><thead><tr><th class="row-header"></th>';
+    niches.forEach(n => { html += `<th>${niceName(n)}</th>`; });
+    html += '</tr></thead><tbody>';
+    models.forEach(m => {
+      html += `<tr><th class="row-header">${m}</th>`;
+      niches.forEach(n => {
+        const val = gtHeatData[m] ? gtHeatData[m][n] : null;
+        if (val == null) {
+          html += `<td class="heatmap-cell" style="background:rgba(255,255,255,0.03);color:var(--text-muted);" title="${m} / ${niceName(n)}: no labels">n/a</td>`;
+        } else {
+          const bg = heatColor(val, 100);
+          html += `<td class="heatmap-cell clickable" data-model="${m}" data-niche="${n}" style="background:${bg}" title="${m} / ${niceName(n)}: ${val}% accuracy vs GT">${val}</td>`;
+        }
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    container.querySelectorAll('.heatmap-cell.clickable').forEach(cell => {
+      cell.addEventListener('click', () => openDrilldown(cell.dataset.model, cell.dataset.niche));
+    });
+  }
+
+  // Show toggles
+  document.getElementById('heatmap-toggle-1').style.display = '';
+  document.getElementById('heatmap-toggle-2').style.display = '';
+
+  // Toggle 1: Classification Rate ↔ Accuracy vs GT
+  document.querySelectorAll('#heatmap-toggle-1 .heatmap-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#heatmap-toggle-1 .heatmap-toggle-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      if (this.dataset.mode === 'gt') {
+        renderGTHeatmap('heatmap-container');
+      } else {
+        renderHeatmap('heatmap-container', DATA.heatmap, 100, false, openDrilldown);
+      }
+    });
+  });
+
+  // Toggle 2: Avg Confidence ↔ Accuracy vs GT
+  document.querySelectorAll('#heatmap-toggle-2 .heatmap-toggle-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('#heatmap-toggle-2 .heatmap-toggle-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      if (this.dataset.mode === 'gt') {
+        renderGTHeatmap('conf-heatmap-container');
+      } else {
+        renderHeatmap('conf-heatmap-container', DATA.confidence_heatmap, 100, true, openDrilldown);
+      }
+    });
+  });
+
+  // --- Model table: add GT columns ---
+  const thead = document.querySelector('#model-table-head tr');
+  const gtCols = [
+    { name: 'GT Accuracy', tip: '' },
+    { name: 'Precision', tip: '' },
+    { name: 'Recall', tip: '' },
+    { name: 'F1', tip: '' },
+    { name: 'Kappa', tip: "Measures classification quality beyond chance agreement. Unlike raw accuracy, Kappa penalizes a model that simply predicts the majority class. Interpretation: &lt;0 worse than random, 0 random, 0.21–0.40 fair, 0.41–0.60 moderate, 0.61–0.80 substantial, 0.81–1.00 near-perfect." },
+    { name: 'Specificity', tip: "True Negative Rate — of images humans labeled as NOT belonging to the niche, what % did the model correctly reject? High specificity = reliably catches misplaced images, critical for dataset cleanup." },
+    { name: 'ECE', tip: "Expected Calibration Error — weighted average gap between predicted confidence and actual accuracy. Lower is better. &lt;5% well-calibrated, 5–15% moderate, &gt;15% poorly calibrated. Low ECE means you can trust confidence scores for threshold-based filtering." },
+  ];
+  gtCols.forEach(col => {
+    const th = document.createElement('th');
+    if (col.tip) {
+      th.innerHTML = `<span class="metric-with-tip">${col.name} ${tip(col.tip)}</span>`;
+    } else {
+      th.textContent = col.name;
+    }
+    thead.appendChild(th);
+  });
+  document.querySelectorAll('#model-table tbody tr').forEach(tr => {
+    const modelName = tr.querySelector('.model-name').textContent.trim();
+    const gtm = GT.per_model[modelName];
+    // Accuracy, Precision, Recall, F1 — percentage with standard coloring
+    [gtm ? gtm.accuracy : null, gtm ? gtm.precision : null, gtm ? gtm.recall : null, gtm ? gtm.f1 : null].forEach(val => {
+      const td = document.createElement('td');
+      if (val != null) {
+        td.innerHTML = `<span class="conf-badge ${val >= 80 ? 'conf-high' : val >= 50 ? 'conf-medium' : 'conf-low'}">${val}%</span>`;
+      } else { td.style.color = 'var(--text-muted)'; td.textContent = 'n/a'; }
+      tr.appendChild(td);
+    });
+    // Kappa — raw value, green ≥0.6, yellow ≥0.4, red <0.4
+    const kappaVal = gtm ? gtm.kappa : null;
+    const tdK = document.createElement('td');
+    if (kappaVal != null) {
+      const kCls = kappaVal >= 0.6 ? 'conf-high' : kappaVal >= 0.4 ? 'conf-medium' : 'conf-low';
+      tdK.innerHTML = `<span class="conf-badge ${kCls}">${kappaVal.toFixed(3)}</span>`;
+    } else { tdK.style.color = 'var(--text-muted)'; tdK.textContent = 'n/a'; }
+    tr.appendChild(tdK);
+    // Specificity — percentage
+    const specVal = gtm ? gtm.specificity : null;
+    const tdS = document.createElement('td');
+    if (specVal != null) {
+      tdS.innerHTML = `<span class="conf-badge ${specVal >= 80 ? 'conf-high' : specVal >= 50 ? 'conf-medium' : 'conf-low'}">${specVal}%</span>`;
+    } else { tdS.style.color = 'var(--text-muted)'; tdS.textContent = 'n/a'; }
+    tr.appendChild(tdS);
+    // ECE — percentage, inverse color: green ≤5, yellow ≤15, red >15
+    const eceVal = gtm ? gtm.ece : null;
+    const tdE = document.createElement('td');
+    if (eceVal != null) {
+      const eCls = eceVal <= 5 ? 'conf-high' : eceVal <= 15 ? 'conf-medium' : 'conf-low';
+      tdE.innerHTML = `<span class="conf-badge ${eCls}">${eceVal}%</span>`;
+    } else { tdE.style.color = 'var(--text-muted)'; tdE.textContent = 'n/a'; }
+    tr.appendChild(tdE);
+  });
+
 })();
 
 </script>

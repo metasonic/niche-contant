@@ -18,5 +18,8 @@ venv/
 .DS_Store
 Thumbs.db
 
+# Human labeling data (per-user, not shared)
+dashboard/human_labels.json
+
 # Screenshots (dev artifacts)
 *.png

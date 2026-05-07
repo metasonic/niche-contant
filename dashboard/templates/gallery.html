@@ -696,6 +696,103 @@ body::before {
 /* ================================================================
    RESPONSIVE
    ================================================================ */
+/* ================================================================
+   HUMAN LABEL BADGE (on card thumbnails)
+   ================================================================ */
+.human-label-badge {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  backdrop-filter: blur(8px);
+  z-index: 2;
+}
+.human-label-badge.yes {
+  background: rgba(52, 211, 153, 0.25);
+  color: var(--success);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+}
+.human-label-badge.no {
+  background: rgba(248, 113, 113, 0.25);
+  color: var(--danger);
+  border: 1px solid rgba(248, 113, 113, 0.4);
+}
+
+/* ================================================================
+   HUMAN LABEL BUTTONS (in modal)
+   ================================================================ */
+.label-btn-group {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.label-btn {
+  padding: 7px 18px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.label-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.label-btn-yes {
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--success);
+  border-color: rgba(52, 211, 153, 0.3);
+}
+.label-btn-yes:hover:not(:disabled) {
+  background: rgba(52, 211, 153, 0.25);
+  border-color: var(--success);
+}
+.label-btn-yes.active {
+  background: rgba(52, 211, 153, 0.3);
+  border-color: var(--success);
+  box-shadow: 0 0 12px rgba(52, 211, 153, 0.2);
+}
+.label-btn-no {
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--danger);
+  border-color: rgba(248, 113, 113, 0.3);
+}
+.label-btn-no:hover:not(:disabled) {
+  background: rgba(248, 113, 113, 0.25);
+  border-color: var(--danger);
+}
+.label-btn-no.active {
+  background: rgba(248, 113, 113, 0.3);
+  border-color: var(--danger);
+  box-shadow: 0 0 12px rgba(248, 113, 113, 0.2);
+}
+.label-btn-clear {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+  border-color: var(--border);
+  font-size: 0.72rem;
+}
+.label-btn-clear:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary);
+}
+.label-status {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  min-height: 1.2em;
+}
+.label-saving .label-btn { opacity: 0.5; pointer-events: none; }
+
 @media (max-width: 768px) {
   .modal-content {
     grid-template-columns: 1fr;
@@ -748,6 +845,16 @@ body::before {
         <button class="toggle-btn" data-agreement="all_yes">All YES</button>
         <button class="toggle-btn" data-agreement="disagreement">Mixed</button>
         <button class="toggle-btn" data-agreement="all_no">All NO</button>
+      </div>
+    </div>
+
+    <div class="filter-group">
+      <span class="filter-label">Human Label</span>
+      <div class="toggle-group" id="label-toggle-group">
+        <button class="toggle-btn active" data-label="">All</button>
+        <button class="toggle-btn" data-label="yes">Labeled YES</button>
+        <button class="toggle-btn" data-label="no">Labeled NO</button>
+        <button class="toggle-btn" data-label="unreviewed">Unreviewed</button>
       </div>
     </div>
 
@@ -813,6 +920,7 @@ body::before {
 const DATA = {{ data | safe }};
 const ITEMS = DATA.items || [];
 const FILTERS = DATA.filters || {};
+let LABEL_STATS = DATA.label_stats || { total: 0, yes: 0, no: 0 };
 
 // =====================================================================
 // PALETTE (matches dashboard)
@@ -873,12 +981,14 @@ function formatDate(iso) {
 // =====================================================================
 function getFilters() {
   const niche = document.getElementById('filter-niche').value;
-  const agreementBtn = document.querySelector('.toggle-btn.active');
+  const agreementBtn = document.querySelector('[data-agreement].toggle-btn.active');
   const agreement = agreementBtn ? agreementBtn.dataset.agreement : '';
+  const labelBtn = document.querySelector('#label-toggle-group .toggle-btn.active');
+  const label = labelBtn ? labelBtn.dataset.label : '';
   const owner = document.getElementById('filter-owner').value.trim().toLowerCase();
   const minConf = parseInt(document.getElementById('filter-conf').value, 10) / 100;
   const sort = document.getElementById('filter-sort').value;
-  return { niche, agreement, owner, minConf, sort };
+  return { niche, agreement, label, owner, minConf, sort };
 }
 
 function applyFilters() {
@@ -886,6 +996,11 @@ function applyFilters() {
   filteredItems = ITEMS.filter(item => {
     if (f.niche && item.niche !== f.niche) return false;
     if (f.agreement && item.agreement !== f.agreement) return false;
+    if (f.label) {
+      if (f.label === 'yes' && item.human_label !== 'YES') return false;
+      if (f.label === 'no' && item.human_label !== 'NO') return false;
+      if (f.label === 'unreviewed' && item.human_label !== null) return false;
+    }
     if (f.owner && !item.owner.toLowerCase().includes(f.owner)) return false;
     if (item.avg_confidence < f.minConf) return false;
     return true;
@@ -909,6 +1024,7 @@ function updateURL(f) {
   const params = new URLSearchParams();
   if (f.niche) params.set('niche', f.niche);
   if (f.agreement) params.set('agreement', f.agreement);
+  if (f.label) params.set('label', f.label);
   if (f.owner) params.set('owner', f.owner);
   if (f.minConf > 0) params.set('conf', Math.round(f.minConf * 100));
   if (f.sort !== 'niche') params.set('sort', f.sort);
@@ -921,8 +1037,13 @@ function loadFiltersFromURL() {
   const params = new URLSearchParams(window.location.search);
   if (params.has('niche')) document.getElementById('filter-niche').value = params.get('niche');
   if (params.has('agreement')) {
-    document.querySelectorAll('.toggle-btn').forEach(b => {
+    document.querySelectorAll('[data-agreement].toggle-btn').forEach(b => {
       b.classList.toggle('active', b.dataset.agreement === params.get('agreement'));
+    });
+  }
+  if (params.has('label')) {
+    document.querySelectorAll('#label-toggle-group .toggle-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.label === params.get('label'));
     });
   }
   if (params.has('owner')) document.getElementById('filter-owner').value = params.get('owner');
@@ -941,8 +1062,11 @@ function renderGrid() {
   const grid = document.getElementById('image-grid');
   grid.innerHTML = '';
 
+  const labelInfo = LABEL_STATS.total > 0
+    ? ` &middot; <span style="color:var(--accent-6)">${LABEL_STATS.total} labeled</span> (${LABEL_STATS.yes} YES, ${LABEL_STATS.no} NO)`
+    : '';
   document.getElementById('results-count').innerHTML =
-    `Showing <strong>${filteredItems.length}</strong> of <strong>${ITEMS.length}</strong> images`;
+    `Showing <strong>${filteredItems.length}</strong> of <strong>${ITEMS.length}</strong> images${labelInfo}`;
 
   const BATCH = 40;
   const first = filteredItems.slice(0, BATCH);
@@ -967,6 +1091,10 @@ function createCard(item, index) {
   const sym = agreementSymbol(item.agreement);
   const confPct = Math.round(item.avg_confidence * 100);
 
+  const labelBadge = item.human_label
+    ? `<span class="human-label-badge ${item.human_label === 'YES' ? 'yes' : 'no'}" data-key="${item.key}">Human: ${item.human_label}</span>`
+    : '';
+
   card.innerHTML = `
     <div class="card-image-wrap">
       <img src="${item.thumb_url}" alt="${item.filename}"
@@ -974,6 +1102,7 @@ function createCard(item, index) {
            onerror="this.parentElement.innerHTML='<div class=img-placeholder>Image unavailable</div>'">
       <span class="niche-badge">${niceName(item.niche)}</span>
       <span class="agreement-dot ${item.agreement}" title="${agreementLabel(item.agreement)}">${sym}</span>
+      ${labelBadge}
       <div class="card-overlay">
         <span class="owner">${item.owner || 'Unknown'}</span>
         <div class="meta-row">
@@ -1070,6 +1199,18 @@ function openModal(index) {
         <span class="agreement-conf">Avg confidence: ${confPct}%</span>
       </div>
     </div>
+    <div id="human-label-section" data-key="${item.key}">
+      <div class="modal-section-title">Human Label (Ground Truth)</div>
+      <div class="label-btn-group">
+        <button class="label-btn label-btn-yes ${item.human_label === 'YES' ? 'active' : ''}"
+                onclick="setHumanLabel('${item.key}', 'YES', this)">YES</button>
+        <button class="label-btn label-btn-no ${item.human_label === 'NO' ? 'active' : ''}"
+                onclick="setHumanLabel('${item.key}', 'NO', this)">NO</button>
+        <button class="label-btn label-btn-clear" style="${item.human_label ? '' : 'display:none'}"
+                onclick="clearHumanLabel('${item.key}', this)">Clear</button>
+      </div>
+      <div class="label-status">${item.human_label ? 'Labeled: ' + item.human_label : 'Not yet reviewed'}</div>
+    </div>
     <div>
       <div class="modal-section-title">Model Evaluations</div>
       <table class="eval-table">
@@ -1108,9 +1249,18 @@ document.getElementById('filter-conf').addEventListener('input', function() {
 });
 
 // Agreement toggles
-document.querySelectorAll('.toggle-btn').forEach(btn => {
+document.querySelectorAll('[data-agreement].toggle-btn').forEach(btn => {
   btn.addEventListener('click', function() {
-    document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('[data-agreement].toggle-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    applyFilters();
+  });
+});
+
+// Human label toggles
+document.querySelectorAll('#label-toggle-group .toggle-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    document.querySelectorAll('#label-toggle-group .toggle-btn').forEach(b => b.classList.remove('active'));
     this.classList.add('active');
     applyFilters();
   });
@@ -1166,6 +1316,104 @@ document.addEventListener('keydown', e => {
   if (e.key === 'ArrowLeft') navModal(-1);
   if (e.key === 'ArrowRight') navModal(1);
 });
+
+// =====================================================================
+// HUMAN LABEL FUNCTIONS
+// =====================================================================
+let _labelTimer = null;
+
+function setHumanLabel(key, verdict, btn) {
+  // Optimistic UI update
+  const section = document.getElementById('human-label-section');
+  if (section) {
+    section.querySelectorAll('.label-btn-yes, .label-btn-no').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    section.querySelector('.label-btn-clear').style.display = '';
+    section.querySelector('.label-status').textContent = 'Labeled: ' + verdict;
+  }
+
+  // Update in-memory data
+  const item = ITEMS.find(i => i.key === key);
+  if (item) item.human_label = verdict;
+
+  // Update card badge
+  updateCardBadge(key, verdict);
+
+  // Update label stats
+  const oldLabel = item ? item._prevLabel : null;
+  if (!oldLabel && verdict) { LABEL_STATS.total++; }
+  if (verdict === 'YES') { LABEL_STATS.yes++; if (oldLabel === 'NO') LABEL_STATS.no--; }
+  if (verdict === 'NO') { LABEL_STATS.no++; if (oldLabel === 'YES') LABEL_STATS.yes--; }
+  if (item) item._prevLabel = verdict;
+
+  // Debounced API call
+  clearTimeout(_labelTimer);
+  _labelTimer = setTimeout(() => {
+    fetch('/api/labels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key, verdict }),
+    }).catch(err => console.error('Label save failed:', err));
+  }, 300);
+}
+
+function clearHumanLabel(key, btn) {
+  // Optimistic UI update
+  const section = document.getElementById('human-label-section');
+  if (section) {
+    section.querySelectorAll('.label-btn-yes, .label-btn-no').forEach(b => b.classList.remove('active'));
+    section.querySelector('.label-btn-clear').style.display = 'none';
+    section.querySelector('.label-status').textContent = 'Not yet reviewed';
+  }
+
+  // Update in-memory data
+  const item = ITEMS.find(i => i.key === key);
+  if (item) {
+    if (item.human_label === 'YES') LABEL_STATS.yes--;
+    if (item.human_label === 'NO') LABEL_STATS.no--;
+    LABEL_STATS.total--;
+    item.human_label = null;
+    item._prevLabel = null;
+  }
+
+  // Update card badge
+  updateCardBadge(key, null);
+
+  fetch('/api/labels', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key }),
+  }).catch(err => console.error('Label clear failed:', err));
+}
+
+function updateCardBadge(key, verdict) {
+  // Update badge on the grid card without full re-render
+  const existingBadge = document.querySelector(`.human-label-badge[data-key="${CSS.escape(key)}"]`);
+  if (existingBadge) {
+    if (verdict) {
+      existingBadge.className = `human-label-badge ${verdict === 'YES' ? 'yes' : 'no'}`;
+      existingBadge.textContent = 'Human: ' + verdict;
+    } else {
+      existingBadge.remove();
+    }
+  } else if (verdict) {
+    // Find the card and add badge
+    const cards = document.querySelectorAll('.gallery-card');
+    cards.forEach(card => {
+      const idx = parseInt(card.dataset.index, 10);
+      if (filteredItems[idx] && filteredItems[idx].key === key) {
+        const wrap = card.querySelector('.card-image-wrap');
+        if (wrap) {
+          const badge = document.createElement('span');
+          badge.className = `human-label-badge ${verdict === 'YES' ? 'yes' : 'no'}`;
+          badge.dataset.key = key;
+          badge.textContent = 'Human: ' + verdict;
+          wrap.appendChild(badge);
+        }
+      }
+    });
+  }
+}
 
 // =====================================================================
 // DEEP LINK: ?highlight=niche/filename auto-opens modal

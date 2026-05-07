@@ -8,7 +8,10 @@ CDN image URLs from report.json, and serves a management‑ready dashboard.
 import csv
 import json
 import os
+import tempfile
+import threading
 from collections import defaultdict
+from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean, median, stdev
 
@@ -25,6 +28,97 @@ DOWNLOADS_DIR = PROJECT_ROOT / "downloads"
 THUMBS_DIR = Path(__file__).resolve().parent / "static" / "thumbs"
 
 app = Flask(__name__)
+
+# ---------------------------------------------------------------------------
+# Human Labels (Ground Truth)
+# ---------------------------------------------------------------------------
+LABELS_PATH = Path(__file__).resolve().parent / "human_labels.json"
+
+
+class HumanLabels:
+    """Thread-safe singleton for human ground-truth labels.
+
+    File format: {"version": 1, "labels": {"folder/image.jpg": {"verdict": "YES", "timestamp": "..."}}}
+    """
+
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._lock = threading.Lock()
+            cls._instance._cache = None
+        return cls._instance
+
+    def _load(self) -> dict:
+        if self._cache is not None:
+            return self._cache
+        if LABELS_PATH.exists():
+            with open(LABELS_PATH, encoding="utf-8") as f:
+                data = json.load(f)
+            self._cache = data.get("labels", {})
+        else:
+            self._cache = {}
+        return self._cache
+
+    def _save(self):
+        payload = json.dumps(
+            {"version": 1, "labels": self._cache},
+            indent=2,
+            ensure_ascii=False,
+        )
+        fd, tmp = tempfile.mkstemp(
+            dir=str(LABELS_PATH.parent), suffix=".tmp"
+        )
+        closed = False
+        try:
+            os.write(fd, payload.encode("utf-8"))
+            os.close(fd)
+            closed = True
+            os.replace(tmp, str(LABELS_PATH))
+        except Exception:
+            if not closed:
+                os.close(fd)
+            if os.path.exists(tmp):
+                os.unlink(tmp)
+            raise
+
+    def get_all(self) -> dict:
+        with self._lock:
+            return dict(self._load())
+
+    def get(self, key: str):
+        with self._lock:
+            entry = self._load().get(key)
+            return entry["verdict"] if entry else None
+
+    def set_label(self, key: str, verdict: str):
+        verdict = verdict.strip().upper()
+        if verdict not in ("YES", "NO"):
+            raise ValueError(f"verdict must be YES or NO, got {verdict!r}")
+        with self._lock:
+            self._load()
+            self._cache[key] = {
+                "verdict": verdict,
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+            self._save()
+
+    def clear_label(self, key: str):
+        with self._lock:
+            self._load()
+            self._cache.pop(key, None)
+            self._save()
+
+    def stats(self) -> dict:
+        with self._lock:
+            labels = self._load()
+            total = len(labels)
+            yes = sum(1 for v in labels.values() if v["verdict"] == "YES")
+            return {"total": total, "yes": yes, "no": total - yes}
+
+
+human_labels = HumanLabels()
 
 # ---------------------------------------------------------------------------
 # Data helpers
@@ -128,13 +222,14 @@ def build_gallery_data() -> dict:
     csv_paths = _discover_csvs()
     url_map = _build_url_map()
     post_lookup = _build_post_lookup()
+    all_labels = human_labels.get_all()
 
     all_rows: list[dict] = []
     for p in csv_paths:
         all_rows.extend(_parse_csv(p))
 
     if not all_rows:
-        return {"items": [], "filters": {"niches": [], "models": [], "owners": []}}
+        return {"items": [], "filters": {"niches": [], "models": [], "owners": []}, "label_stats": human_labels.stats()}
 
     model_short = {m: m.split("/")[-1] for m in sorted({r["model_name_name"] for r in all_rows})}
 
@@ -194,6 +289,10 @@ def build_gallery_data() -> dict:
         if owner:
             all_owners.add(owner)
 
+        # Human label (ground truth)
+        label_entry = all_labels.get(img_key)
+        hl = label_entry["verdict"] if label_entry else None
+
         items.append({
             "key": img_key,
             "filename": filename,
@@ -204,6 +303,7 @@ def build_gallery_data() -> dict:
             "avg_confidence": avg_conf,
             "evaluations": evaluations,
             "verdicts": verdicts,
+            "human_label": hl,
             "owner": owner,
             "title": meta.get("title", ""),
             "likes": meta.get("likes", 0),
@@ -223,6 +323,7 @@ def build_gallery_data() -> dict:
             "models": models,
             "owners": owners,
         },
+        "label_stats": human_labels.stats(),
     }
 
 
@@ -376,6 +477,172 @@ def compute_metrics():
     total_yes = sum(1 for r in all_rows if r["belongs_to_niche"] == "YES")
     all_probs = [r["probability"] for r in all_rows]
 
+    # --- Ground truth (human labels) ---
+    all_labels = human_labels.get_all()
+    label_stats = human_labels.stats()
+    ground_truth = None
+
+    if label_stats["total"] > 0:
+        # Per-model: TP/FP/TN/FN vs human labels
+        gt_per_model: dict[str, dict] = {}
+        for m in models:
+            short = model_short[m]
+            tp = fp = tn = fn = 0
+            m_rows = [r for r in all_rows if r["model_name_name"] == m]
+            for r in m_rows:
+                key = f"{r['folder_name']}/{r['image_name']}"
+                lbl_entry = all_labels.get(key)
+                if not lbl_entry:
+                    continue
+                gt = lbl_entry["verdict"]
+                pred = r["belongs_to_niche"]
+                if pred == "YES" and gt == "YES":
+                    tp += 1
+                elif pred == "YES" and gt == "NO":
+                    fp += 1
+                elif pred == "NO" and gt == "NO":
+                    tn += 1
+                elif pred == "NO" and gt == "YES":
+                    fn += 1
+            total_labeled = tp + fp + tn + fn
+            accuracy = round((tp + tn) / total_labeled * 100, 1) if total_labeled else None
+            precision = round(tp / (tp + fp) * 100, 1) if (tp + fp) else None
+            recall = round(tp / (tp + fn) * 100, 1) if (tp + fn) else None
+            f1 = round(2 * tp / (2 * tp + fp + fn) * 100, 1) if (2 * tp + fp + fn) else None
+            # Cohen's Kappa
+            if total_labeled > 0:
+                p_o = (tp + tn) / total_labeled
+                p_yes = ((tp + fp) / total_labeled) * ((tp + fn) / total_labeled)
+                p_no = ((tn + fn) / total_labeled) * ((tn + fp) / total_labeled)
+                p_e = p_yes + p_no
+                kappa = round((p_o - p_e) / (1 - p_e), 3) if p_e != 1 else None
+            else:
+                kappa = None
+
+            # Specificity (True Negative Rate)
+            specificity = round(tn / (tn + fp) * 100, 1) if (tn + fp) > 0 else None
+
+            # ECE (Expected Calibration Error) — computed after calibration buckets
+            # Calibration buckets for this model
+            cal_buckets = []
+            cal_bounds = [(0, 0.2), (0.2, 0.4), (0.4, 0.6), (0.6, 0.8), (0.8, 1.01)]
+            for lo, hi in cal_bounds:
+                midpoint = round((lo + min(hi, 1.0)) / 2, 2)
+                bucket_rows = []
+                for r in m_rows:
+                    key = f"{r['folder_name']}/{r['image_name']}"
+                    lbl_entry = all_labels.get(key)
+                    if not lbl_entry:
+                        continue
+                    prob = r["probability"]
+                    if lo <= prob < hi:
+                        correct = 1 if r["belongs_to_niche"] == lbl_entry["verdict"] else 0
+                        bucket_rows.append((prob, correct))
+                if bucket_rows:
+                    avg_conf = round(mean([x[0] for x in bucket_rows]), 3)
+                    actual_acc = round(sum(x[1] for x in bucket_rows) / len(bucket_rows) * 100, 1)
+                    cal_buckets.append([midpoint, avg_conf, actual_acc, len(bucket_rows)])
+                else:
+                    cal_buckets.append([midpoint, None, None, 0])
+
+            # ECE = weighted average |confidence - accuracy| across buckets
+            ece_num = 0.0
+            ece_den = 0
+            for bucket in cal_buckets:
+                _, avg_c, act_a, cnt = bucket
+                if cnt > 0 and avg_c is not None and act_a is not None:
+                    ece_num += cnt * abs(avg_c * 100 - act_a)
+                    ece_den += cnt
+            ece = round(ece_num / ece_den, 1) if ece_den > 0 else None
+
+            gt_per_model[short] = {
+                "tp": tp, "fp": fp, "tn": tn, "fn": fn,
+                "total_labeled": total_labeled,
+                "accuracy": accuracy, "precision": precision,
+                "recall": recall, "f1": f1,
+                "kappa": kappa, "specificity": specificity, "ece": ece,
+                "calibration": cal_buckets,
+            }
+
+        # Per-niche accuracy vs ground truth
+        gt_per_niche: dict[str, dict] = {}
+        for n in niches:
+            correct = total_l = 0
+            n_rows = [r for r in all_rows if r["folder_name"] == n]
+            for r in n_rows:
+                key = f"{r['folder_name']}/{r['image_name']}"
+                lbl_entry = all_labels.get(key)
+                if not lbl_entry:
+                    continue
+                total_l += 1
+                if r["belongs_to_niche"] == lbl_entry["verdict"]:
+                    correct += 1
+            gt_per_niche[n] = {
+                "labeled": total_l,
+                "accuracy": round(correct / total_l * 100, 1) if total_l else None,
+            }
+
+        # Model x Niche heatmap: accuracy vs ground truth
+        gt_heatmap: dict[str, dict[str, float | None]] = {}
+        for m in models:
+            short = model_short[m]
+            gt_heatmap[short] = {}
+            for n in niches:
+                correct = total_l = 0
+                mn_rows = [r for r in all_rows if r["model_name_name"] == m and r["folder_name"] == n]
+                for r in mn_rows:
+                    key = f"{r['folder_name']}/{r['image_name']}"
+                    lbl_entry = all_labels.get(key)
+                    if not lbl_entry:
+                        continue
+                    total_l += 1
+                    if r["belongs_to_niche"] == lbl_entry["verdict"]:
+                        correct += 1
+                gt_heatmap[short][n] = round(correct / total_l * 100, 1) if total_l else None
+
+        # Overall accuracy across all models (treating each model-image pair independently)
+        total_correct = sum(m["tp"] + m["tn"] for m in gt_per_model.values())
+        total_labeled_all = sum(m["total_labeled"] for m in gt_per_model.values())
+        overall_accuracy = round(total_correct / total_labeled_all * 100, 1) if total_labeled_all else None
+
+        # Majority Vote Accuracy
+        mv_correct = 0
+        mv_total = 0
+        for img_key, verdicts in image_verdicts.items():
+            lbl_entry = all_labels.get(img_key)
+            if not lbl_entry:
+                continue
+            yes_votes = sum(1 for v in verdicts.values() if v == "YES")
+            no_votes = len(verdicts) - yes_votes
+            majority = "YES" if yes_votes >= no_votes else "NO"  # ties → YES
+            mv_total += 1
+            if majority == lbl_entry["verdict"]:
+                mv_correct += 1
+        majority_vote = {
+            "accuracy": round(mv_correct / mv_total * 100, 1) if mv_total else None,
+            "correct": mv_correct,
+            "total": mv_total,
+        }
+
+        # Calibration data restructured per-model for frontend
+        calibration = {}
+        for short, gm in gt_per_model.items():
+            calibration[short] = gm.get("calibration", [])
+
+        # Simple verdict-only map for frontend use (disagreement cards, etc.)
+        label_map = {k: v["verdict"] for k, v in all_labels.items()}
+
+        ground_truth = {
+            "label_stats": label_stats,
+            "overall_accuracy": overall_accuracy,
+            "per_model": gt_per_model,
+            "per_niche": gt_per_niche,
+            "heatmap": gt_heatmap,
+            "label_map": label_map,
+            "majority_vote": majority_vote,
+            "calibration": calibration,
+        }
+
     return {
         "kpis": {
             "total_models": len(models),
@@ -405,6 +672,7 @@ def compute_metrics():
         "low_confidence": low_confidence,
         "niche_file_counts": niche_file_counts,
         "report_meta": report_meta,
+        "ground_truth": ground_truth,
     }
 
 def heatmap_detail(model_short: str, niche: str) -> dict:
@@ -451,6 +719,7 @@ def heatmap_detail(model_short: str, niche: str) -> dict:
     }
 
     # Per-image items sorted by probability ascending
+    all_labels = human_labels.get_all()
     items = []
     for r in sorted(matched, key=lambda r: r["probability"]):
         filename = r["image_name"]
@@ -460,6 +729,8 @@ def heatmap_detail(model_short: str, niche: str) -> dict:
         else:
             image_url = f"/image/{folder}/{filename}"
         thumb_url = f"/thumb/{folder}/{filename}"
+        img_key = f"{folder}/{filename}"
+        lbl_entry = all_labels.get(img_key)
         items.append({
             "filename": filename,
             "thumb_url": thumb_url,
@@ -467,6 +738,7 @@ def heatmap_detail(model_short: str, niche: str) -> dict:
             "verdict": r["belongs_to_niche"],
             "probability": r["probability"],
             "reason": r.get("reason", ""),
+            "human_label": lbl_entry["verdict"] if lbl_entry else None,
         })
 
     return {"summary": summary, "items": items}
@@ -505,6 +777,34 @@ def api_heatmap_detail():
     if not model or not niche:
         return jsonify({"error": "model and niche query params required"}), 400
     return jsonify(heatmap_detail(model, niche))
+
+
+@app.route("/api/labels", methods=["GET"])
+def api_labels_get():
+    labels = human_labels.get_all()
+    stats = human_labels.stats()
+    return jsonify({"labels": labels, "stats": stats})
+
+
+@app.route("/api/labels", methods=["POST"])
+def api_labels_set():
+    body = request.get_json(silent=True) or {}
+    key = body.get("key", "").strip()
+    verdict = body.get("verdict", "").strip().upper()
+    if not key or verdict not in ("YES", "NO"):
+        return jsonify({"error": "key and verdict (YES/NO) required"}), 400
+    human_labels.set_label(key, verdict)
+    return jsonify({"ok": True, "key": key, "verdict": verdict})
+
+
+@app.route("/api/labels", methods=["DELETE"])
+def api_labels_clear():
+    body = request.get_json(silent=True) or {}
+    key = body.get("key", "").strip()
+    if not key:
+        return jsonify({"error": "key required"}), 400
+    human_labels.clear_label(key)
+    return jsonify({"ok": True, "key": key, "verdict": None})
 
 
 @app.route("/image/<niche>/<filename>")
