@@ -1,9 +1,8 @@
 # Large binary assets (882MB+ images/videos)
 downloads/
 
-# Optimized image tree built locally for the Docker image.
-# Generate with: python3 scripts/optimize_images.py
-downloads_optimized/
+# Optimized image tree (downloads_optimized/) is tracked via Git LFS — see .gitattributes.
+# Regenerate locally with: python3 scripts/optimize_images.py
 
 # Generated thumbnails
 dashboard/static/thumbs/
@@ -27,3 +26,5 @@ dashboard/human_labels.json
 
 # Screenshots (dev artifacts)
 *.png
+.cursor*
+.superdesign*
