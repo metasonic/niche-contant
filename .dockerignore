@@ -1,0 +1,51 @@
+# Raw downloads — replaced by downloads_optimized/ (run scripts/optimize_images.py)
+downloads/
+
+# Python build/runtime artifacts (will be rebuilt in the container)
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Git
+.git/
+.gitignore
+
+# IDE / editor
+.vscode/
+.idea/
+.cursor/
+.windsurfrules
+*.swp
+*.swo
+
+# Local-only files
+.DS_Store
+.playwright-mcp/
+.superdesign/
+CLAUDE.md
+
+# Backups, screenshots, exported spreadsheets — dev artifacts only
+*.png
+*.jpg
+*.jpeg
+*.bak
+*.backup_*.json
+*.xlsx
+report.json.bak
+report.txt
+
+# One-off scripts not needed in the image
+backfill_urls.py
+download_niches.py
+export_dashboard_data.py
+scripts/
+
+# Docs
+DOCKER.md
+README.md
+
+# Thumbnail cache — regenerated on demand at runtime
+dashboard/static/thumbs/

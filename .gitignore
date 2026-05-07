@@ -1,6 +1,10 @@
 # Large binary assets (882MB+ images/videos)
 downloads/
 
+# Optimized image tree built locally for the Docker image.
+# Generate with: python3 scripts/optimize_images.py
+downloads_optimized/
+
 # Generated thumbnails
 dashboard/static/thumbs/
 

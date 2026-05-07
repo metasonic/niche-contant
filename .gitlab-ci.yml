@@ -1,0 +1,51 @@
+stages:
+  - prepare
+  - build
+
+variables:
+  GIT_DEPTH: 1
+  FF_USE_FASTZIP: 1
+
+# ---------------------------------------------------------------------------
+# Stage 1 — generate the optimized image set the Dockerfile expects.
+# Runs only if downloads/ is committed to the repo (LFS or otherwise).
+# Skip this job if you ship downloads_optimized/ directly.
+# ---------------------------------------------------------------------------
+optimize-images:
+  stage: prepare
+  image: python:3.11-slim
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      exists:
+        - downloads/**/*.jpg
+  before_script:
+    - pip install --no-cache-dir Pillow
+  script:
+    - python3 scripts/optimize_images.py
+  artifacts:
+    paths:
+      - downloads_optimized/
+    expire_in: 1 week
+
+# ---------------------------------------------------------------------------
+# Stage 2 — kaniko build & push, mirrored from the reference repo.
+# ---------------------------------------------------------------------------
+build:
+  stage: build
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  needs:
+    - job: optimize-images
+      artifacts: true
+      optional: true
+  before_script:
+    - echo "{\"auths\":{\"${CI_REGISTRY}\":{\"auth\":\"$(printf "%s:%s" "${CI_REGISTRY_USER}" "${CI_REGISTRY_PASSWORD}" | base64 | tr -d '\n')\"}}}" > /kaniko/.docker/config.json
+  script:
+    - /kaniko/executor
+      --context "${CI_PROJECT_DIR}"
+      --dockerfile "${CI_PROJECT_DIR}/Dockerfile"
+      --destination "${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHORT_SHA}"
+      --destination "${CI_REGISTRY_IMAGE}:latest"
