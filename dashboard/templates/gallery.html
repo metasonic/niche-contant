@@ -6,6 +6,7 @@
 <title>Image Gallery — Vision Model Evaluation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>window.APP_BASE = {{ script_root|tojson }};</script>
 <style>
 /* ================================================================
    RESET & BASE — matches dashboard theme
@@ -823,7 +824,7 @@ body::before {
       <p>Browse all evaluated images with model classifications</p>
     </div>
     <div class="header-right">
-      <a href="/" class="nav-link">Dashboard</a>
+      <a href="{{ script_root }}/" class="nav-link">Dashboard</a>
     </div>
   </header>
 
@@ -1349,7 +1350,7 @@ function setHumanLabel(key, verdict, btn) {
   // Debounced API call
   clearTimeout(_labelTimer);
   _labelTimer = setTimeout(() => {
-    fetch('/api/labels', {
+    fetch(window.APP_BASE + '/api/labels', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, verdict }),
@@ -1379,7 +1380,7 @@ function clearHumanLabel(key, btn) {
   // Update card badge
   updateCardBadge(key, null);
 
-  fetch('/api/labels', {
+  fetch(window.APP_BASE + '/api/labels', {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key }),

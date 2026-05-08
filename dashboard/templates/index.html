@@ -6,6 +6,7 @@
 <title>Vision Model Evaluation — Executive Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<script>window.APP_BASE = {{ script_root|tojson }};</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 /* ================================================================
@@ -954,7 +955,7 @@ body::before {
       <p>AI Niche Classification — Performance Dashboard</p>
     </div>
     <div class="header-right">
-      <a href="/gallery" class="nav-link">Gallery</a>
+      <a href="{{ script_root }}/gallery" class="nav-link">Gallery</a>
       <span class="badge badge-live">Live Data</span>
       <span class="timestamp" id="timestamp"></span>
     </div>
@@ -1380,7 +1381,7 @@ function openDrilldown(model, niche) {
   body.innerHTML = '<div class="dd-spinner">Loading…</div>';
   backdrop.classList.add('open');
 
-  fetch(`/api/heatmap-detail?model=${encodeURIComponent(model)}&niche=${encodeURIComponent(niche)}`)
+  fetch(`${window.APP_BASE}/api/heatmap-detail?model=${encodeURIComponent(model)}&niche=${encodeURIComponent(niche)}`)
     .then(r => r.json())
     .then(data => {
       if (data.error) {
@@ -1539,7 +1540,7 @@ renderHeatmap('conf-heatmap-container', DATA.confidence_heatmap, 100, true, open
   samples.forEach(s => {
     const card = document.createElement('a');
     card.className = 'disagree-card';
-    card.href = '/gallery?highlight=' + encodeURIComponent(s.image);
+    card.href = window.APP_BASE + '/gallery?highlight=' + encodeURIComponent(s.image);
     card.style.textDecoration = 'none';
     card.style.color = 'inherit';
     card.title = 'View in gallery';

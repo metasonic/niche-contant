@@ -17,6 +17,7 @@ from statistics import mean, median, stdev
 
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from PIL import Image
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -28,6 +29,9 @@ DOWNLOADS_DIR = PROJECT_ROOT / "downloads"
 THUMBS_DIR = Path(__file__).resolve().parent / "static" / "thumbs"
 
 app = Flask(__name__)
+# Honor X-Forwarded-Prefix / X-Forwarded-Proto / X-Forwarded-Host so the app
+# works under a reverse-proxy sub-path (e.g. /experiment-qai-488).
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
 
 # ---------------------------------------------------------------------------
 # Human Labels (Ground Truth)
@@ -219,6 +223,7 @@ def build_gallery_data() -> dict:
 
     Returns {items: [...], filters: {niches, models, owners}}.
     """
+    script_root = request.script_root if request else ""
     csv_paths = _discover_csvs()
     url_map = _build_url_map()
     post_lookup = _build_post_lookup()
@@ -254,8 +259,8 @@ def build_gallery_data() -> dict:
         if filename in url_map:
             image_url = url_map[filename].get("source_url", "")
         else:
-            image_url = f"/image/{niche}/{filename}"
-        thumb_url = f"/thumb/{niche}/{filename}"
+            image_url = f"{script_root}/image/{niche}/{filename}"
+        thumb_url = f"{script_root}/thumb/{niche}/{filename}"
 
         # Model evaluations
         evaluations = []
@@ -333,6 +338,7 @@ def build_gallery_data() -> dict:
 
 def compute_metrics():
     """Aggregate all evaluation CSVs into dashboard metrics."""
+    script_root = request.script_root if request else ""
     csv_paths = _discover_csvs()
     url_map = _build_url_map()
     report_meta = _load_report_meta()
@@ -461,7 +467,7 @@ def compute_metrics():
             entry["image_url"] = url_map[r["image_name"]].get("source_url", "")
             entry["preview_url"] = url_map[r["image_name"]].get("preview_url", "")
         else:
-            entry["image_url"] = f"/image/{r['folder_name']}/{r['image_name']}"
+            entry["image_url"] = f"{script_root}/image/{r['folder_name']}/{r['image_name']}"
         low_confidence.append(entry)
 
     # --- Niche file counts from disk ---
@@ -677,6 +683,7 @@ def compute_metrics():
 
 def heatmap_detail(model_short: str, niche: str) -> dict:
     """Per-image breakdown for a single model×niche cell in the confidence heatmap."""
+    script_root = request.script_root if request else ""
     csv_paths = _discover_csvs()
     url_map = _build_url_map()
 
@@ -727,8 +734,8 @@ def heatmap_detail(model_short: str, niche: str) -> dict:
         if filename in url_map:
             image_url = url_map[filename].get("source_url", "")
         else:
-            image_url = f"/image/{folder}/{filename}"
-        thumb_url = f"/thumb/{folder}/{filename}"
+            image_url = f"{script_root}/image/{folder}/{filename}"
+        thumb_url = f"{script_root}/thumb/{folder}/{filename}"
         img_key = f"{folder}/{filename}"
         lbl_entry = all_labels.get(img_key)
         items.append({
@@ -751,7 +758,11 @@ def heatmap_detail(model_short: str, niche: str) -> dict:
 @app.route("/")
 def index():
     data = compute_metrics()
-    return render_template("index.html", data=json.dumps(data))
+    return render_template(
+        "index.html",
+        data=json.dumps(data),
+        script_root=request.script_root,
+    )
 
 
 @app.route("/api/data")
@@ -762,7 +773,11 @@ def api_data():
 @app.route("/gallery")
 def gallery():
     data = build_gallery_data()
-    return render_template("gallery.html", data=json.dumps(data))
+    return render_template(
+        "gallery.html",
+        data=json.dumps(data),
+        script_root=request.script_root,
+    )
 
 
 @app.route("/api/gallery")
