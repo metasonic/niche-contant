@@ -6,7 +6,27 @@
 <title>Vision Model Evaluation — Executive Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script>window.APP_BASE = {{ script_root|tojson }};</script>
+<script>
+// Derive the reverse-proxy mount prefix from the current URL so the app
+// works under any sub-path (e.g. /experiment-qai-488) without requiring
+// X-Forwarded-Prefix or a SCRIPT_NAME env var.
+(function () {
+  var p = window.location.pathname;
+  // Strip the route suffix (/gallery[/] or trailing /) to recover the prefix.
+  window.APP_BASE = p.replace(/\/(?:gallery)?\/?$/, '');
+  window.appUrl = function (u) {
+    if (!u) return u;
+    if (/^https?:\/\//i.test(u)) return u;
+    if (u.charAt(0) === '/') return window.APP_BASE + u;
+    return u;
+  };
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-app-href]').forEach(function (el) {
+      el.setAttribute('href', window.appUrl(el.getAttribute('data-app-href')));
+    });
+  });
+})();
+</script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
 <style>
 /* ================================================================
@@ -955,7 +975,7 @@ body::before {
       <p>AI Niche Classification — Performance Dashboard</p>
     </div>
     <div class="header-right">
-      <a href="{{ script_root }}/gallery" class="nav-link">Gallery</a>
+      <a href="/gallery" data-app-href="/gallery" class="nav-link">Gallery</a>
       <span class="badge badge-live">Live Data</span>
       <span class="timestamp" id="timestamp"></span>
     </div>
@@ -1381,7 +1401,7 @@ function openDrilldown(model, niche) {
   body.innerHTML = '<div class="dd-spinner">Loading…</div>';
   backdrop.classList.add('open');
 
-  fetch(`${window.APP_BASE}/api/heatmap-detail?model=${encodeURIComponent(model)}&niche=${encodeURIComponent(niche)}`)
+  fetch(appUrl(`/api/heatmap-detail?model=${encodeURIComponent(model)}&niche=${encodeURIComponent(niche)}`))
     .then(r => r.json())
     .then(data => {
       if (data.error) {
@@ -1447,8 +1467,8 @@ function renderDrilldownContent(container, data) {
       ? `<span class="human-badge-inline ${hl === 'YES' ? 'yes' : 'no'}">Human: ${hl}</span>`
       : (DATA.ground_truth ? '<span class="human-badge-inline unl">Unlabeled</span>' : '');
     html += `<div class="dd-card">
-      <img class="dd-card-thumb" src="${item.thumb_url}" alt="${item.filename}"
-           loading="lazy" onclick="window.open('${item.image_url}','_blank')"
+      <img class="dd-card-thumb" src="${appUrl(item.thumb_url)}" alt="${item.filename}"
+           loading="lazy" onclick="window.open('${appUrl(item.image_url)}','_blank')"
            onerror="this.style.display='none'">
       <div class="dd-card-info">
         <div class="dd-card-filename" title="${item.filename}">${item.filename} ${hlBadge}</div>
@@ -1540,7 +1560,7 @@ renderHeatmap('conf-heatmap-container', DATA.confidence_heatmap, 100, true, open
   samples.forEach(s => {
     const card = document.createElement('a');
     card.className = 'disagree-card';
-    card.href = window.APP_BASE + '/gallery?highlight=' + encodeURIComponent(s.image);
+    card.href = appUrl('/gallery?highlight=' + encodeURIComponent(s.image));
     card.style.textDecoration = 'none';
     card.style.color = 'inherit';
     card.title = 'View in gallery';

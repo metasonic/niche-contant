@@ -6,7 +6,27 @@
 <title>Image Gallery — Vision Model Evaluation</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-<script>window.APP_BASE = {{ script_root|tojson }};</script>
+<script>
+// Derive the reverse-proxy mount prefix from the current URL so the app
+// works under any sub-path (e.g. /experiment-qai-488) without requiring
+// X-Forwarded-Prefix or a SCRIPT_NAME env var.
+(function () {
+  var p = window.location.pathname;
+  // Strip the route suffix (/gallery[/] or trailing /) to recover the prefix.
+  window.APP_BASE = p.replace(/\/(?:gallery)?\/?$/, '');
+  window.appUrl = function (u) {
+    if (!u) return u;
+    if (/^https?:\/\//i.test(u)) return u;
+    if (u.charAt(0) === '/') return window.APP_BASE + u;
+    return u;
+  };
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-app-href]').forEach(function (el) {
+      el.setAttribute('href', window.appUrl(el.getAttribute('data-app-href')));
+    });
+  });
+})();
+</script>
 <style>
 /* ================================================================
    RESET & BASE — matches dashboard theme
@@ -824,7 +844,7 @@ body::before {
       <p>Browse all evaluated images with model classifications</p>
     </div>
     <div class="header-right">
-      <a href="{{ script_root }}/" class="nav-link">Dashboard</a>
+      <a href="/" data-app-href="/" class="nav-link">Dashboard</a>
     </div>
   </header>
 
@@ -1098,7 +1118,7 @@ function createCard(item, index) {
 
   card.innerHTML = `
     <div class="card-image-wrap">
-      <img src="${item.thumb_url}" alt="${item.filename}"
+      <img src="${appUrl(item.thumb_url)}" alt="${item.filename}"
            loading="lazy" decoding="async"
            onerror="this.parentElement.innerHTML='<div class=img-placeholder>Image unavailable</div>'">
       <span class="niche-badge">${niceName(item.niche)}</span>
@@ -1129,8 +1149,8 @@ function openModal(index) {
 
   // Image
   document.getElementById('modal-image').innerHTML = `
-    <img src="${item.image_url}" alt="${item.filename}"
-         onerror="this.src='${item.thumb_url}'">
+    <img src="${appUrl(item.image_url)}" alt="${item.filename}"
+         onerror="this.src='${appUrl(item.thumb_url)}'">
   `;
 
   // Details
@@ -1350,7 +1370,7 @@ function setHumanLabel(key, verdict, btn) {
   // Debounced API call
   clearTimeout(_labelTimer);
   _labelTimer = setTimeout(() => {
-    fetch(window.APP_BASE + '/api/labels', {
+    fetch(appUrl('/api/labels'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ key, verdict }),
@@ -1380,7 +1400,7 @@ function clearHumanLabel(key, btn) {
   // Update card badge
   updateCardBadge(key, null);
 
-  fetch(window.APP_BASE + '/api/labels', {
+  fetch(appUrl('/api/labels'), {
     method: 'DELETE',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key }),
