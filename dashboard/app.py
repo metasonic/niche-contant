@@ -29,9 +29,37 @@ DOWNLOADS_DIR = PROJECT_ROOT / "downloads"
 THUMBS_DIR = Path(__file__).resolve().parent / "static" / "thumbs"
 
 app = Flask(__name__)
+
+
+class _ScriptNameMiddleware:
+    """Force SCRIPT_NAME and strip the prefix from PATH_INFO if present.
+
+    Lets the app run under a sub-path (e.g. /experiment-qai-488) even when
+    the reverse proxy does not send X-Forwarded-Prefix. Set URL_PREFIX in
+    the environment to enable.
+    """
+
+    def __init__(self, app, prefix: str):
+        self.app = app
+        self.prefix = prefix
+
+    def __call__(self, environ, start_response):
+        environ["SCRIPT_NAME"] = self.prefix
+        path = environ.get("PATH_INFO", "")
+        if path.startswith(self.prefix):
+            environ["PATH_INFO"] = path[len(self.prefix):] or "/"
+        return self.app(environ, start_response)
+
+
 # Honor X-Forwarded-Prefix / X-Forwarded-Proto / X-Forwarded-Host so the app
 # works under a reverse-proxy sub-path (e.g. /experiment-qai-488).
 app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1, x_prefix=1)
+
+# Fallback: explicit URL_PREFIX env var, used when the proxy does not send
+# X-Forwarded-Prefix. Header takes precedence when present.
+_url_prefix = os.environ.get("URL_PREFIX", "").rstrip("/")
+if _url_prefix:
+    app.wsgi_app = _ScriptNameMiddleware(app.wsgi_app, _url_prefix)
 
 # ---------------------------------------------------------------------------
 # Human Labels (Ground Truth)
